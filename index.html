@@ -135,7 +135,9 @@
 
   .item-name{ font-weight:700; font-size:15.5px; }
   .item-brand{ font-size:13px; color:var(--muted); margin-top:1px; }
-  .category-tag{ display:inline-block; font-size:11.5px; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:1px 7px; margin-top:8px; }
+  .item-brand.unsure{ color:var(--gold); }
+  .category-tag{ display:inline-block; font-size:11.5px; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:1px 7px; margin-top:8px; margin-right:6px; }
+  .discount-tag{ display:inline-block; font-size:11.5px; color:var(--danger); border:1px solid var(--danger); border-radius:6px; padding:1px 7px; margin-top:8px; }
   .price{ font-family:var(--font-mono); font-size:19px; font-weight:600; color:var(--gold); font-variant-numeric:tabular-nums; margin:10px 0 6px; }
   .reason{ font-size:13px; opacity:.85; }
   .evidence{ font-size:12px; color:var(--muted); margin-top:4px; }
@@ -143,6 +145,8 @@
   .mercari-link{ display:inline-flex; align-items:center; gap:4px; font-size:13.5px; font-weight:600; color:var(--teal); text-decoration:none; }
   .mercari-link:hover{ text-decoration:underline; }
   .link-hint{ font-size:11.5px; color:var(--muted); }
+  .closeup-link{ background:none; border:none; padding:0; margin-top:6px; font-size:13px; font-weight:600; color:var(--gold); text-decoration:none; cursor:pointer; text-align:left; font-family:inherit; }
+  .closeup-link:hover{ text-decoration:underline; }
 
   footer.foot{ margin-top:28px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); }
   [hidden]{ display:none!important; }
@@ -160,7 +164,7 @@
       </div>
       <button class="gear" id="settingsBtn" aria-label="設定" title="設定">⚙️</button>
     </div>
-    <p class="tagline">商品棚を撮るだけで、ブランド品とメルカリでの狙い目をAIが見つけます</p>
+    <p class="tagline">商品棚を撮るだけで、高く売れそうな「狙い目」をAIが見つけます</p>
   </header>
 
   <section class="panel" id="setupPanel" hidden>
@@ -183,15 +187,15 @@
 
   <section class="steps" aria-label="使い方">
     <div class="step"><span class="n">01</span><p>棚を撮影</p></div>
-    <div class="step"><span class="n">02</span><p>AIがブランドを判定</p></div>
-    <div class="step"><span class="n">03</span><p>メルカリで相場確認</p></div>
+    <div class="step"><span class="n">02</span><p>AIが狙い目を判定</p></div>
+    <div class="step"><span class="n">03</span><p>気になる商品は近づいて再確認</p></div>
   </section>
 
   <section class="panel" id="scanPanel">
     <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="写真を撮る、または選ぶ">
       <span class="icon">📷</span>
-      <span class="cta">写真を撮る / 画像を選ぶ</span>
-      <div class="hint">値札やロゴが読める距離で撮影してください</div>
+      <span class="cta" id="dropzoneCta">写真を撮る / 画像を選ぶ</span>
+      <div class="hint" id="dropzoneHint">棚全体が写っていればOK。値札やロゴが読めるとより正確です</div>
     </div>
     <input type="file" id="fileInput" accept="image/*" capture="environment" hidden>
 
@@ -209,12 +213,18 @@
     <p class="status-line" id="statusLine" hidden></p>
   </section>
 
+  <section class="results" id="detailSection" hidden>
+    <h2>🔍 拡大確認の結果</h2>
+    <div class="cards" id="detailList"></div>
+  </section>
+
   <section class="results">
-    <h2>検出結果</h2>
+    <h2>注目商品</h2>
     <div class="banner" id="demoBanner">
       <span>💡</span>
       <span>これはサンプル表示です。写真を解析すると、あなたの棚の結果に置き換わります。</span>
     </div>
+    <p class="field-hint" style="margin:-6px 0 14px;">ブランド名は目安です。「確定」以外の商品は、カード内の🔍リンクからその商品だけをアップで撮り直すと精度が上がります。</p>
     <div class="cards" id="cardList"></div>
   </section>
 
@@ -230,40 +240,65 @@
   const STORAGE_KEY_MODEL = 'sedori-scanner-gemini-model';
 
   const DEMO_ITEMS = [
-    {item:"マウンテンパーカー", brand:"THE NORTH FACE", category:"アウター", confidence:"high", est_low:8000, est_high:15000, reason:"定番人気モデルで通年需要が高い", keyword:"ノースフェイス マウンテンパーカー"},
-    {item:"二つ折り財布", brand:"COACH", category:"財布・小物", confidence:"medium", est_low:4000, est_high:8000, reason:"型落ちでも一定の需要が続くブランド", keyword:"コーチ 二つ折り財布"},
-    {item:"スニーカー 574", brand:"New Balance", category:"シューズ", confidence:"high", est_low:3000, est_high:6000, reason:"未使用品は定価超えで取引されることも", keyword:"ニューバランス 574"}
+    {item:"マウンテンパーカー", brand:"THE NORTH FACE", brand_certain:true, discount_signal:"", category:"アウター", confidence:"high", est_low:8000, est_high:15000, reason:"定番人気モデルで通年需要が高い", evidence:"胸元にノースフェイスのロゴマークがはっきり見える", keyword:"ノースフェイス マウンテンパーカー"},
+    {item:"トートバッグ", brand:"", brand_certain:false, discount_signal:"半額シール", category:"バッグ", confidence:"medium", est_low:0, est_high:0, reason:"半額シール付きで仕入れ値が低く狙い目", evidence:"ロゴは不明瞭だが金具の作りが上質で、値引きシールあり", keyword:"レザー トートバッグ ブランド不明"},
+    {item:"スニーカー 574", brand:"New Balance", brand_certain:true, discount_signal:"", category:"シューズ", confidence:"high", est_low:3000, est_high:6000, reason:"未使用品は定価超えで取引されることも", evidence:"側面のNロゴがはっきり見える", keyword:"ニューバランス 574"}
   ];
+
+  const ITEM_SCHEMA = {
+    type: "object",
+    properties: {
+      item: { type: "string" },
+      brand: { type: "string" },
+      brand_certain: { type: "boolean" },
+      evidence: { type: "string" },
+      discount_signal: { type: "string" },
+      category: { type: "string" },
+      confidence: { type: "string", enum: ["high","medium","low"] },
+      est_low: { type: "number" },
+      est_high: { type: "number" },
+      reason: { type: "string" },
+      keyword: { type: "string" }
+    },
+    required: ["item","evidence","brand_certain","confidence","est_low","est_high","keyword"]
+  };
 
   const RESPONSE_SCHEMA = {
     type: "object",
-    properties: {
-      items: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            item: { type: "string" },
-            brand: { type: "string" },
-            evidence: { type: "string" },
-            category: { type: "string" },
-            confidence: { type: "string", enum: ["high","medium","low"] },
-            est_low: { type: "number" },
-            est_high: { type: "number" },
-            reason: { type: "string" },
-            keyword: { type: "string" }
-          },
-          required: ["item","evidence","confidence","est_low","est_high","keyword"]
-        }
-      }
-    },
+    properties: { items: { type: "array", items: ITEM_SCHEMA } },
     required: ["items"]
   };
+
+  const PROMPT_MAIN = [
+    'あなたは日本の中古品転売(せどり)に詳しい目利きです。添付の写真は小売店の商品棚です。',
+    '写っている商品の中から、メルカリ等のフリマアプリで転売した際に利益が出やすいと考えられる「注目商品」を最大8件ピックアップしてください。写真に実際に写っているものだけを対象にし、写っていない商品を創作しないでください。',
+    '',
+    '注目商品は、次の2種類のどちらでも構いません。両方の視点で探してください。',
+    'A) ブランドがかなり高い確度で特定できるもの',
+    'B) ブランドは不明でも、値引き・クリアランスの表示があったり、上質な作り・パッケージで転売益が見込めそうなもの',
+    '',
+    '【ブランド判定のルール(最重要)】',
+    '- ブランド名を書いてよいのは、次のどちらかを実際に写真の中で確認できた場合だけです: (1) ロゴ・ブランド名の文字・タグ・パッケージ表記が読み取れる (2) モノグラム柄、総柄パターン、スウォッシュや三本線のような、そのブランド固有と分かるアイコニックな意匠が見える。',
+    '- バッグや靴の一般的な形・シルエットだけから「たぶん〇〇ブランドだろう」と推測してブランド名を書くのは禁止です。誤認の最大の原因です。',
+    '- 確信が持てる場合は brand_certain を true に、少しでも自信がない場合は false にしてください。false のときは brand は空文字にするか、根拠が弱いことが分かるようにしてください。',
+    '- evidence には、判断に使った具体的な文字・ロゴ・柄・値引き表示の内容を書いてください(例:「胸ポケットに刺繍ロゴ」「モノグラム柄の生地」「黄色の半額シールが貼付」)。何も確証がない場合は「ロゴ等は確認できず」と正直に書いてください。',
+    '- discount_signal には、値引きシール・クリアランス表示・「アウトレット」「在庫限り」等の掲示が見えた場合にその内容を書いてください。無ければ空文字にしてください。',
+    '',
+    '各商品について item, brand(不明可), brand_certain, evidence, discount_signal, category, confidence(high/medium/low、総合的な「狙い目度」), est_low(円), est_high(円), reason(30字以内), keyword(メルカリ検索用) を出力してください。価格は一般知識に基づくおおまかな目安で構いません。ブランド不明の場合は est_low/est_high を 0 にして構いません。'
+  ].join('\n');
+
+  const PROMPT_DETAIL = [
+    'あなたは日本の中古品転売(せどり)に詳しい目利きです。添付の写真は、ユーザーが1つの商品だけをできるだけ大きく撮影したクローズアップ写真です。',
+    'この商品のブランド・型番・特徴を、写真から読み取れる範囲でできるだけ正確に判定してください。',
+    '【ブランド判定のルール】ロゴ・タグ・刻印の文字、またはモノグラム柄などアイコニックな意匠が実際に見える場合のみブランド名と brand_certain: true を出力してください。形状だけからの推測は禁止です。確証がなければ brand は空文字、brand_certain は false にし、evidence に見えている具体的な手がかり(または「確認できず」)を書いてください。',
+    '出力は1件のみで構いません(items配列に1要素)。discount_signal は見えた値引き表示があれば書き、無ければ空文字にしてください。est_low/est_high は円単位のおおまかな中古参考価格(不明なら0)、keyword はメルカリ検索用の短い語句にしてください。'
+  ].join('\n');
 
   const els = {};
   let currentFile = null;
   let apiKey = null;
   let model = null;
+  let closeupMode = false;
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -277,6 +312,8 @@
     els.keyStatus = document.getElementById('keyStatus');
     els.scanPanel = document.getElementById('scanPanel');
     els.dropzone = document.getElementById('dropzone');
+    els.dropzoneCta = document.getElementById('dropzoneCta');
+    els.dropzoneHint = document.getElementById('dropzoneHint');
     els.fileInput = document.getElementById('fileInput');
     els.previewBlock = document.getElementById('previewBlock');
     els.previewImg = document.getElementById('previewImg');
@@ -286,6 +323,8 @@
     els.statusLine = document.getElementById('statusLine');
     els.demoBanner = document.getElementById('demoBanner');
     els.cardList = document.getElementById('cardList');
+    els.detailSection = document.getElementById('detailSection');
+    els.detailList = document.getElementById('detailList');
 
     renderItems(DEMO_ITEMS, true);
 
@@ -299,6 +338,8 @@
     els.settingsBtn.addEventListener('click', () => openSetup(true));
     els.saveKeyBtn.addEventListener('click', saveKey);
     els.cancelKeyBtn.addEventListener('click', () => openSetup(false));
+    els.cardList.addEventListener('click', onCloseupLinkClick);
+    els.detailList.addEventListener('click', onCloseupLinkClick);
 
     apiKey = localStorage.getItem(STORAGE_KEY);
     model = localStorage.getItem(STORAGE_KEY_MODEL) || DEFAULT_MODEL;
@@ -354,6 +395,16 @@
     hideStatus();
   }
 
+  function onCloseupLinkClick(e){
+    const link = e.target.closest('.closeup-link');
+    if(!link) return;
+    closeupMode = true;
+    resetToPicker();
+    els.dropzoneCta.textContent = '🔍 その商品をアップで撮る';
+    els.dropzoneHint.textContent = '1点だけを画面いっぱいに、ロゴやタグが読める距離で撮影してください';
+    els.scanPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   function showStatus(msg, isErr){
     els.statusLine.textContent = msg;
     els.statusLine.hidden = false;
@@ -384,24 +435,12 @@
     if(!currentFile) return;
     if(!apiKey){ openSetup(true, false); return; }
 
+    const mode = closeupMode ? 'detail' : 'main';
+    const prompt = mode === 'detail' ? PROMPT_DETAIL : PROMPT_MAIN;
+
     els.analyzeBtn.disabled = true;
     els.retakeBtn.disabled = true;
     showStatus('解析中…(数十秒かかることがあります)', false);
-
-    const prompt = [
-      'あなたは日本の中古品転売(せどり)に詳しい目利きです。',
-      '添付の写真は小売店の商品棚です。写っている商品のうち、ブランドが特定でき、日本のフリマアプリ「メルカリ」で転売した際に利益が出やすいと考えられるものを、最大8件ピックアップしてください。',
-      '一般的な日用品は含めないでください。写真に実際に写っているものだけを対象にし、写っていない商品を創作しないでください。',
-      '',
-      '【ブランド判定について、最も重要な注意】',
-      '- ロゴ・ブランド名の文字・タグ・パッケージ表記など、写真の中で実際に読み取れる文字や意匠を根拠にした場合だけ brand を記入してください。',
-      '- 商品の形やジャンルからの推測(例:「トートバッグだからおそらく〇〇というブランドだろう」)でブランド名を書くのは禁止です。誤認の原因になります。',
-      '- 文字やロゴがはっきり読めない場合は、brand を空文字にし、category と reason だけで判断理由を書いてください(ブランド不明でも、パッケージや型番から転売価値がありそうなら含めて構いません)。',
-      '- 判断の根拠にした具体的な文字・ロゴ・タグの内容を evidence に短く書いてください(例:「胸元のタグに『COACH』の刻印」「パッケージ側面に型番表記」)。読み取れる文字が無い場合は「ロゴ不明、形状から推定」のように正直に書いてください。',
-      '',
-      '各商品について、商品名(item)、ブランド名(brand、不明なら空文字)、判断根拠(evidence)、カテゴリ(category)、確度(confidence: high/medium/low。ロゴ等がはっきり読めた場合のみhigh)、中古参考価格の下限(est_low、円)と上限(est_high、円)、転売価値がある理由を30字以内で(reason)、メルカリ検索用の短いキーワード(keyword)を出力してください。',
-      '価格はあなたの一般知識に基づくおおまかな目安で構いません。'
-    ].join('\n');
 
     try{
       const base64 = await resizeToBase64(currentFile, 2048);
@@ -441,7 +480,9 @@
         .map(x => ({
           item: String(x.item),
           brand: x.brand ? String(x.brand) : '',
+          brand_certain: !!x.brand_certain,
           evidence: x.evidence ? String(x.evidence) : '',
+          discount_signal: x.discount_signal ? String(x.discount_signal) : '',
           category: x.category ? String(x.category) : '',
           confidence: ['high','medium','low'].includes(x.confidence) ? x.confidence : 'medium',
           est_low: Number(x.est_low) || 0,
@@ -449,18 +490,33 @@
           reason: x.reason ? String(x.reason) : '',
           keyword: x.keyword ? String(x.keyword) : (x.brand ? String(x.brand) + ' ' + String(x.item) : String(x.item))
         }));
-      if(cleaned.length === 0){
-        showStatus('狙い目の商品が見つかりませんでした。別の角度や、ロゴが大きく写る距離で撮り直してみてください。', false);
+
+      if(mode === 'detail'){
+        if(cleaned.length === 0){
+          showStatus('この商品は判定できませんでした。もっと近づいて、ロゴやタグにピントを合わせて撮り直してみてください。', false);
+        } else {
+          hideStatus();
+        }
+        els.detailSection.hidden = cleaned.length === 0;
+        els.detailList.innerHTML = cleaned.map(cardHtml).join('');
+        if(cleaned.length) els.detailSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else {
-        hideStatus();
+        if(cleaned.length === 0){
+          showStatus('狙い目の商品が見つかりませんでした。別の角度や、値札が見える距離で撮り直してみてください。', false);
+        } else {
+          hideStatus();
+        }
+        renderItems(cleaned, false);
       }
-      renderItems(cleaned, false);
     } catch(err){
       console.error(err);
       showStatus(friendlyError(err), true);
     } finally {
       els.analyzeBtn.disabled = false;
       els.retakeBtn.disabled = false;
+      closeupMode = false;
+      els.dropzoneCta.textContent = '写真を撮る / 画像を選ぶ';
+      els.dropzoneHint.textContent = '棚全体が写っていればOK。値札やロゴが読めるとより正確です';
     }
   }
 
@@ -488,34 +544,46 @@
 
   function yen(n){ return '¥' + Math.round(n).toLocaleString('ja-JP'); }
 
+  const CONF_RANK = { high: 2, medium: 1, low: 0 };
   function renderItems(items, demo){
     els.demoBanner.hidden = !demo;
-    const sorted = items.slice().sort((a,b) => (b.est_high||0) - (a.est_high||0));
+    const sorted = items.slice().sort((a,b) => {
+      const c = (CONF_RANK[b.confidence] || 0) - (CONF_RANK[a.confidence] || 0);
+      return c !== 0 ? c : (b.est_high||0) - (a.est_high||0);
+    });
     els.cardList.innerHTML = sorted.map(cardHtml).join('');
   }
 
   function cardHtml(x){
-    const confLabel = x.confidence === 'high' ? '確度: 高' : x.confidence === 'low' ? '確度: 低' : '確度: 中';
-    const priceText = x.est_low && x.est_high && x.est_low !== x.est_high
-      ? yen(x.est_low) + '〜' + yen(x.est_high)
-      : (x.est_high ? yen(x.est_high) + '前後' : '目安不明');
+    const confLabel = x.confidence === 'high' ? '狙い目度: 高' : x.confidence === 'low' ? '狙い目度: 低' : '狙い目度: 中';
+    const hasPrice = x.est_low > 0 || x.est_high > 0;
+    const priceText = !hasPrice
+      ? 'ブランド未確定のため目安なし'
+      : (x.est_low && x.est_high && x.est_low !== x.est_high
+        ? yen(x.est_low) + '〜' + yen(x.est_high)
+        : yen(x.est_high || x.est_low) + '前後');
     const url = 'https://jp.mercari.com/search?keyword=' + encodeURIComponent(x.keyword || x.item);
+    const brandLine = x.brand
+      ? '<div class="item-brand' + (x.brand_certain ? '' : ' unsure') + '">' + escapeHtml(x.brand) + (x.brand_certain ? '' : '(未確定)') + '</div>'
+      : (x.brand_certain === false ? '<div class="item-brand unsure">ブランド不明</div>' : '');
     return (
       '<div class="card">' +
         '<div class="card-top">' +
           '<div>' +
             '<div class="item-name">' + escapeHtml(x.item) + '</div>' +
-            (x.brand ? '<div class="item-brand">' + escapeHtml(x.brand) + '</div>' : '') +
+            brandLine +
           '</div>' +
           '<span class="chip ' + x.confidence + '">' + confLabel + '</span>' +
         '</div>' +
         (x.category ? '<span class="category-tag">' + escapeHtml(x.category) + '</span>' : '') +
+        (x.discount_signal ? '<span class="discount-tag">🏷️ ' + escapeHtml(x.discount_signal) + '</span>' : '') +
         '<div class="price">' + priceText + '</div>' +
         (x.reason ? '<div class="reason">' + escapeHtml(x.reason) + '</div>' : '') +
         (x.evidence ? '<div class="evidence">根拠: ' + escapeHtml(x.evidence) + '</div>' : '') +
         '<div class="card-actions">' +
           '<a class="mercari-link" href="' + url + '" target="_blank" rel="noopener">メルカリで相場を確認 →</a>' +
           '<span class="link-hint">「販売状況」を「売り切れ」に絞ると実際の落札額が見られます</span>' +
+          (x.brand_certain ? '' : '<button type="button" class="closeup-link">🔍 この商品だけアップで撮り直して確認する</button>') +
         '</div>' +
       '</div>'
     );
