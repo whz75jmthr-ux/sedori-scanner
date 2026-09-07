@@ -168,6 +168,11 @@
     <label class="field-label" for="apiKeyInput">APIキー</label>
     <input type="password" id="apiKeyInput" placeholder="AIza..." autocomplete="off">
     <p class="field-hint"><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio でキーを発行する →</a></p>
+
+    <label class="field-label" for="modelInput" style="margin-top:14px;">モデル名(通常は変更不要)</label>
+    <input type="text" id="modelInput" placeholder="gemini-3.6-flash" autocomplete="off">
+    <p class="field-hint">「モデルが見つかりません」というエラーが出た場合は、エラー文中に書かれているモデル名にここを書き換えてください。</p>
+
     <div class="actions">
       <button class="btn btn-primary" id="saveKeyBtn">保存する</button>
       <button class="btn" id="cancelKeyBtn" hidden>キャンセル</button>
@@ -219,8 +224,9 @@
 
 <script>
 (function(){
-  const MODEL = 'gemini-2.5-flash';
+  const DEFAULT_MODEL = 'gemini-3.6-flash';
   const STORAGE_KEY = 'sedori-scanner-gemini-key';
+  const STORAGE_KEY_MODEL = 'sedori-scanner-gemini-model';
 
   const DEMO_ITEMS = [
     {item:"マウンテンパーカー", brand:"THE NORTH FACE", category:"アウター", confidence:"high", est_low:8000, est_high:15000, reason:"定番人気モデルで通年需要が高い", keyword:"ノースフェイス マウンテンパーカー"},
@@ -229,26 +235,33 @@
   ];
 
   const RESPONSE_SCHEMA = {
-    type: "ARRAY",
-    items: {
-      type: "OBJECT",
-      properties: {
-        item: { type: "STRING" },
-        brand: { type: "STRING" },
-        category: { type: "STRING" },
-        confidence: { type: "STRING", enum: ["high","medium","low"] },
-        est_low: { type: "NUMBER" },
-        est_high: { type: "NUMBER" },
-        reason: { type: "STRING" },
-        keyword: { type: "STRING" }
-      },
-      required: ["item","confidence","est_low","est_high","keyword"]
-    }
+    type: "object",
+    properties: {
+      items: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            item: { type: "string" },
+            brand: { type: "string" },
+            category: { type: "string" },
+            confidence: { type: "string", enum: ["high","medium","low"] },
+            est_low: { type: "number" },
+            est_high: { type: "number" },
+            reason: { type: "string" },
+            keyword: { type: "string" }
+          },
+          required: ["item","confidence","est_low","est_high","keyword"]
+        }
+      }
+    },
+    required: ["items"]
   };
 
   const els = {};
   let currentFile = null;
   let apiKey = null;
+  let model = null;
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -256,6 +269,7 @@
     els.settingsBtn = document.getElementById('settingsBtn');
     els.setupPanel = document.getElementById('setupPanel');
     els.apiKeyInput = document.getElementById('apiKeyInput');
+    els.modelInput = document.getElementById('modelInput');
     els.saveKeyBtn = document.getElementById('saveKeyBtn');
     els.cancelKeyBtn = document.getElementById('cancelKeyBtn');
     els.keyStatus = document.getElementById('keyStatus');
@@ -285,6 +299,7 @@
     els.cancelKeyBtn.addEventListener('click', () => openSetup(false));
 
     apiKey = localStorage.getItem(STORAGE_KEY);
+    model = localStorage.getItem(STORAGE_KEY_MODEL) || DEFAULT_MODEL;
     if(!apiKey){ openSetup(true, false); }
   }
 
@@ -292,15 +307,21 @@
     els.setupPanel.hidden = !show;
     els.scanPanel.hidden = show && !apiKey;
     els.cancelKeyBtn.hidden = !(cancellable !== false && apiKey);
-    if(show) els.apiKeyInput.value = apiKey || '';
+    if(show){
+      els.apiKeyInput.value = apiKey || '';
+      els.modelInput.value = model || DEFAULT_MODEL;
+    }
     hideKeyStatus();
   }
 
   function saveKey(){
     const v = els.apiKeyInput.value.trim();
     if(!v){ showKeyStatus('APIキーを入力してください。', true); return; }
+    const m = els.modelInput.value.trim() || DEFAULT_MODEL;
     localStorage.setItem(STORAGE_KEY, v);
+    localStorage.setItem(STORAGE_KEY_MODEL, m);
     apiKey = v;
+    model = m;
     showKeyStatus('保存しました。', false);
     setTimeout(() => openSetup(false), 500);
   }
@@ -376,21 +397,25 @@
     try{
       const base64 = await resizeToBase64(currentFile, 1600);
       const body = {
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: 'image/jpeg', data: base64 } }
-          ]
-        }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          responseSchema: RESPONSE_SCHEMA
+        model: model || DEFAULT_MODEL,
+        store: false,
+        input: [
+          { type: 'text', text: prompt },
+          { type: 'image', data: base64, mime_type: 'image/jpeg' }
+        ],
+        response_format: {
+          type: 'text',
+          mime_type: 'application/json',
+          schema: RESPONSE_SCHEMA
         }
       };
-      const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent?key=' + encodeURIComponent(apiKey);
+      const url = 'https://generativelanguage.googleapis.com/v1beta/interactions';
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
+        },
         body: JSON.stringify(body)
       });
       const json = await res.json().catch(() => null);
@@ -398,12 +423,10 @@
         const msg = (json && json.error && json.error.message) ? json.error.message : ('HTTPエラー ' + res.status);
         throw new Error(msg);
       }
-      const text = json && json.candidates && json.candidates[0] && json.candidates[0].content
-        && json.candidates[0].content.parts && json.candidates[0].content.parts[0]
-        && json.candidates[0].content.parts[0].text;
+      const text = extractOutputText(json);
       if(!text) throw new Error('AIから結果が返りませんでした。');
-      const data = JSON.parse(text);
-      const list = Array.isArray(data) ? data : [];
+      const parsed = JSON.parse(text);
+      const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed && parsed.items) ? parsed.items : []);
       const cleaned = list
         .filter(x => x && typeof x === 'object' && x.item)
         .map(x => ({
@@ -431,9 +454,22 @@
     }
   }
 
+  function extractOutputText(json){
+    if(!json) return null;
+    const steps = Array.isArray(json.steps) ? json.steps : (Array.isArray(json.output) ? json.output : []);
+    for(const step of steps){
+      const parts = Array.isArray(step && step.content) ? step.content : [];
+      for(const part of parts){
+        if(part && part.type === 'text' && part.text) return part.text;
+      }
+    }
+    return json.output_text || null;
+  }
+
   function friendlyError(err){
     const m = String(err && err.message || err);
     if(/API key not valid|API_KEY_INVALID/i.test(m)) return 'APIキーが正しくありません。⚙️から設定し直してください。';
+    if(/no longer available|not found|not supported/i.test(m)) return 'モデル名が古い可能性があります。⚙️の「モデル名」欄を、下のエラー詳細に出ているモデル名に書き換えて保存してください。詳細: ' + m;
     if(/RESOURCE_EXHAUSTED|quota|429/i.test(m)) return '利用上限に達しました。しばらく待ってから再試行してください。';
     if(/PERMISSION_DENIED|403/i.test(m)) return 'このAPIキーでは利用できませんでした。Google AI Studioでキーの状態を確認してください。';
     if(/Failed to fetch|NetworkError/i.test(m)) return '通信に失敗しました。電波状況を確認してもう一度お試しください。';
