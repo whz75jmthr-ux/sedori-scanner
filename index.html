@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14171C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="せどりスキャナー">
+<title>せどりスキャナー</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;600&display=swap');
+
+  :root{
+    --bg:#F2F3EF;
+    --surface:#FFFFFF;
+    --surface-2:#F7F7F3;
+    --ink:#191B1F;
+    --muted:#5B6270;
+    --line:#E1E3DC;
+    --gold:#A9761F;
+    --gold-bg:#F1E2C0;
+    --teal:#1F7B70;
+    --teal-bg:#D9EFEC;
+    --danger:#B23A2E;
+    --danger-bg:#F5DFDA;
+    --radius:14px;
+    --font-display:'Zen Kaku Gothic New','Hiragino Sans','Noto Sans JP',sans-serif;
+    --font-body:'Noto Sans JP','Hiragino Sans',sans-serif;
+    --font-mono:'JetBrains Mono','SF Mono',ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14171C; --surface:#1B1F26; --surface-2:#20252D;
+      --ink:#ECEDEF; --muted:#8B92A0; --line:#2A2F38;
+      --gold:#E3A63E; --gold-bg:#3A2E14;
+      --teal:#4FB3A9; --teal-bg:#17302D;
+      --danger:#E2685A; --danger-bg:#3A211D;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14171C; --surface:#1B1F26; --surface-2:#20252D;
+    --ink:#ECEDEF; --muted:#8B92A0; --line:#2A2F38;
+    --gold:#E3A63E; --gold-bg:#3A2E14;
+    --teal:#4FB3A9; --teal-bg:#17302D;
+    --danger:#E2685A; --danger-bg:#3A211D;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{ background:var(--bg); }
+  body{
+    margin:0; color:var(--ink); font-family:var(--font-body);
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .wrap{ max-width:640px; margin:0 auto; padding:0 16px 48px; }
+
+  header.top{
+    position:sticky; top:0; z-index:5; background:var(--bg);
+    padding:calc(20px + env(safe-area-inset-top)) 0 14px; border-bottom:1px solid var(--line);
+  }
+  .brand{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+  .brand-left{ display:flex; align-items:baseline; gap:10px; }
+  .mark{
+    font-family:var(--font-mono); font-size:13px; color:var(--gold);
+    background:var(--gold-bg); padding:2px 7px; border-radius:5px; letter-spacing:.02em;
+  }
+  h1{ font-family:var(--font-display); font-weight:900; font-size:22px; margin:0; text-wrap:balance; }
+  .tagline{ margin:6px 0 0; font-size:14px; color:var(--muted); }
+  .gear{
+    background:none; border:1px solid var(--line); border-radius:9px;
+    width:34px; height:34px; font-size:16px; cursor:pointer; color:var(--ink);
+    flex-shrink:0;
+  }
+
+  .steps{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:20px 0; }
+  .step{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:12px 10px; }
+  .step .n{ font-family:var(--font-mono); font-size:12px; color:var(--gold); display:block; margin-bottom:4px; }
+  .step p{ margin:0; font-size:12.5px; }
+
+  .panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:20px; }
+  .panel h2{ font-family:var(--font-display); font-size:16px; margin:0 0 10px; }
+  .panel p.desc{ font-size:13px; color:var(--muted); margin:0 0 14px; }
+
+  label.field-label{ display:block; font-size:12.5px; font-weight:600; margin-bottom:6px; }
+  input[type="text"], input[type="password"]{
+    width:100%; font-family:var(--font-mono); font-size:14px;
+    padding:10px 12px; border-radius:9px; border:1px solid var(--line);
+    background:var(--surface-2); color:var(--ink);
+  }
+  input:focus-visible, .dropzone:focus-visible, .btn:focus-visible{ outline:2px solid var(--teal); outline-offset:2px; }
+  .field-hint{ font-size:12px; color:var(--muted); margin-top:6px; }
+  .field-hint a{ color:var(--teal); }
+
+  .dropzone{
+    border:1.5px dashed var(--line); border-radius:var(--radius); padding:28px 16px;
+    text-align:center; cursor:pointer; transition:border-color .15s ease, background .15s ease;
+  }
+  .dropzone:hover{ border-color:var(--gold); background:var(--surface-2); }
+  .dropzone .icon{ font-size:28px; display:block; margin-bottom:8px; }
+  .dropzone .cta{ font-weight:600; font-size:14.5px; }
+  .dropzone .hint{ font-size:12.5px; color:var(--muted); margin-top:4px; }
+
+  .preview-row{ display:flex; gap:12px; align-items:center; }
+  .preview-row img{ width:88px; height:88px; object-fit:cover; border-radius:10px; border:1px solid var(--line); flex-shrink:0; }
+  .preview-meta{ flex:1; min-width:0; }
+  .preview-meta .name{ font-size:13px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  .btn{
+    font-family:var(--font-body); font-weight:600; font-size:14.5px; border-radius:10px;
+    border:1px solid var(--line); background:var(--surface-2); color:var(--ink);
+    padding:10px 16px; cursor:pointer;
+  }
+  .btn-primary{ background:var(--gold); border-color:var(--gold); color:#191203; }
+  .btn-primary:disabled{ opacity:.55; cursor:not-allowed; }
+  .actions{ display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+
+  .status-line{ font-size:13.5px; color:var(--muted); margin-top:10px; }
+  .status-line.err{ color:var(--danger); }
+
+  .banner{
+    display:flex; gap:8px; align-items:center; background:var(--teal-bg); color:var(--teal);
+    border-radius:10px; padding:9px 12px; font-size:13px; font-weight:600; margin-bottom:14px;
+  }
+  .banner.warn{ background:var(--danger-bg); color:var(--danger); }
+
+  .results h2{ font-family:var(--font-display); font-size:16px; margin:0 0 12px; }
+  .cards{ display:flex; flex-direction:column; gap:12px; }
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; }
+  .card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px; }
+  .chip{ font-family:var(--font-mono); font-size:11px; letter-spacing:.02em; padding:3px 8px; border-radius:999px; white-space:nowrap; }
+  .chip.high{ background:var(--gold-bg); color:var(--gold); }
+  .chip.medium{ background:var(--teal-bg); color:var(--teal); }
+  .chip.low{ background:var(--surface-2); color:var(--muted); border:1px solid var(--line); }
+
+  .item-name{ font-weight:700; font-size:15.5px; }
+  .item-brand{ font-size:13px; color:var(--muted); margin-top:1px; }
+  .category-tag{ display:inline-block; font-size:11.5px; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:1px 7px; margin-top:8px; }
+  .price{ font-family:var(--font-mono); font-size:19px; font-weight:600; color:var(--gold); font-variant-numeric:tabular-nums; margin:10px 0 6px; }
+  .reason{ font-size:13px; opacity:.85; }
+  .card-actions{ margin-top:12px; display:flex; flex-direction:column; gap:4px; }
+  .mercari-link{ display:inline-flex; align-items:center; gap:4px; font-size:13.5px; font-weight:600; color:var(--teal); text-decoration:none; }
+  .mercari-link:hover{ text-decoration:underline; }
+  .link-hint{ font-size:11.5px; color:var(--muted); }
+
+  footer.foot{ margin-top:28px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); }
+  [hidden]{ display:none!important; }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none!important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="brand-left">
+        <span class="mark">SCAN</span>
+        <h1>せどりスキャナー</h1>
+      </div>
+      <button class="gear" id="settingsBtn" aria-label="設定" title="設定">⚙️</button>
+    </div>
+    <p class="tagline">商品棚を撮るだけで、ブランド品とメルカリでの狙い目をAIが見つけます</p>
+  </header>
+
+  <section class="panel" id="setupPanel" hidden>
+    <h2>Gemini APIキーの設定</h2>
+    <p class="desc">写真の解析には Google Gemini API を使います。無料のAPIキーを取得して、下に貼り付けてください。キーはこの端末のブラウザにだけ保存され、Googleへの通信以外には送信されません。</p>
+    <label class="field-label" for="apiKeyInput">APIキー</label>
+    <input type="password" id="apiKeyInput" placeholder="AIza..." autocomplete="off">
+    <p class="field-hint"><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio でキーを発行する →</a></p>
+    <div class="actions">
+      <button class="btn btn-primary" id="saveKeyBtn">保存する</button>
+      <button class="btn" id="cancelKeyBtn" hidden>キャンセル</button>
+    </div>
+    <p class="status-line" id="keyStatus" hidden></p>
+  </section>
+
+  <section class="steps" aria-label="使い方">
+    <div class="step"><span class="n">01</span><p>棚を撮影</p></div>
+    <div class="step"><span class="n">02</span><p>AIがブランドを判定</p></div>
+    <div class="step"><span class="n">03</span><p>メルカリで相場確認</p></div>
+  </section>
+
+  <section class="panel" id="scanPanel">
+    <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="写真を撮る、または選ぶ">
+      <span class="icon">📷</span>
+      <span class="cta">写真を撮る / 画像を選ぶ</span>
+      <div class="hint">値札やロゴが読める距離で撮影してください</div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" capture="environment" hidden>
+
+    <div id="previewBlock" hidden>
+      <div class="preview-row" style="margin-top:14px;">
+        <img id="previewImg" alt="選択した写真のプレビュー">
+        <div class="preview-meta"><div class="name" id="fileName"></div></div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" id="analyzeBtn">この写真を解析する</button>
+        <button class="btn" id="retakeBtn">撮り直す</button>
+      </div>
+    </div>
+
+    <p class="status-line" id="statusLine" hidden></p>
+  </section>
+
+  <section class="results">
+    <h2>検出結果</h2>
+    <div class="banner" id="demoBanner">
+      <span>💡</span>
+      <span>これはサンプル表示です。写真を解析すると、あなたの棚の結果に置き換わります。</span>
+    </div>
+    <div class="cards" id="cardList"></div>
+  </section>
+
+  <footer class="foot">
+    価格帯はAIによる一般知識からのおおまかな目安で、実売相場ではありません。購入前に必ずメルカリのリンクから「売り切れ」の実売履歴を確認してください。ブランドの真贋判定はできないため、最終判断はご自身で行ってください。APIキーはお使いの端末にのみ保存され、Google以外には送信されません。
+  </footer>
+</div>
+
+<script>
+(function(){
+  const MODEL = 'gemini-2.5-flash';
+  const STORAGE_KEY = 'sedori-scanner-gemini-key';
+
+  const DEMO_ITEMS = [
+    {item:"マウンテンパーカー", brand:"THE NORTH FACE", category:"アウター", confidence:"high", est_low:8000, est_high:15000, reason:"定番人気モデルで通年需要が高い", keyword:"ノースフェイス マウンテンパーカー"},
+    {item:"二つ折り財布", brand:"COACH", category:"財布・小物", confidence:"medium", est_low:4000, est_high:8000, reason:"型落ちでも一定の需要が続くブランド", keyword:"コーチ 二つ折り財布"},
+    {item:"スニーカー 574", brand:"New Balance", category:"シューズ", confidence:"high", est_low:3000, est_high:6000, reason:"未使用品は定価超えで取引されることも", keyword:"ニューバランス 574"}
+  ];
+
+  const RESPONSE_SCHEMA = {
+    type: "ARRAY",
+    items: {
+      type: "OBJECT",
+      properties: {
+        item: { type: "STRING" },
+        brand: { type: "STRING" },
+        category: { type: "STRING" },
+        confidence: { type: "STRING", enum: ["high","medium","low"] },
+        est_low: { type: "NUMBER" },
+        est_high: { type: "NUMBER" },
+        reason: { type: "STRING" },
+        keyword: { type: "STRING" }
+      },
+      required: ["item","confidence","est_low","est_high","keyword"]
+    }
+  };
+
+  const els = {};
+  let currentFile = null;
+  let apiKey = null;
+
+  document.addEventListener('DOMContentLoaded', init);
+
+  function init(){
+    els.settingsBtn = document.getElementById('settingsBtn');
+    els.setupPanel = document.getElementById('setupPanel');
+    els.apiKeyInput = document.getElementById('apiKeyInput');
+    els.saveKeyBtn = document.getElementById('saveKeyBtn');
+    els.cancelKeyBtn = document.getElementById('cancelKeyBtn');
+    els.keyStatus = document.getElementById('keyStatus');
+    els.scanPanel = document.getElementById('scanPanel');
+    els.dropzone = document.getElementById('dropzone');
+    els.fileInput = document.getElementById('fileInput');
+    els.previewBlock = document.getElementById('previewBlock');
+    els.previewImg = document.getElementById('previewImg');
+    els.fileName = document.getElementById('fileName');
+    els.analyzeBtn = document.getElementById('analyzeBtn');
+    els.retakeBtn = document.getElementById('retakeBtn');
+    els.statusLine = document.getElementById('statusLine');
+    els.demoBanner = document.getElementById('demoBanner');
+    els.cardList = document.getElementById('cardList');
+
+    renderItems(DEMO_ITEMS, true);
+
+    els.dropzone.addEventListener('click', () => els.fileInput.click());
+    els.dropzone.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); els.fileInput.click(); }
+    });
+    els.fileInput.addEventListener('change', onFileChosen);
+    els.retakeBtn.addEventListener('click', resetToPicker);
+    els.analyzeBtn.addEventListener('click', runAnalysis);
+    els.settingsBtn.addEventListener('click', () => openSetup(true));
+    els.saveKeyBtn.addEventListener('click', saveKey);
+    els.cancelKeyBtn.addEventListener('click', () => openSetup(false));
+
+    apiKey = localStorage.getItem(STORAGE_KEY);
+    if(!apiKey){ openSetup(true, false); }
+  }
+
+  function openSetup(show, cancellable){
+    els.setupPanel.hidden = !show;
+    els.scanPanel.hidden = show && !apiKey;
+    els.cancelKeyBtn.hidden = !(cancellable !== false && apiKey);
+    if(show) els.apiKeyInput.value = apiKey || '';
+    hideKeyStatus();
+  }
+
+  function saveKey(){
+    const v = els.apiKeyInput.value.trim();
+    if(!v){ showKeyStatus('APIキーを入力してください。', true); return; }
+    localStorage.setItem(STORAGE_KEY, v);
+    apiKey = v;
+    showKeyStatus('保存しました。', false);
+    setTimeout(() => openSetup(false), 500);
+  }
+
+  function showKeyStatus(msg, isErr){
+    els.keyStatus.textContent = msg;
+    els.keyStatus.hidden = false;
+    els.keyStatus.classList.toggle('err', !!isErr);
+  }
+  function hideKeyStatus(){ els.keyStatus.hidden = true; }
+
+  function onFileChosen(e){
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    currentFile = file;
+    els.previewImg.src = URL.createObjectURL(file);
+    els.fileName.textContent = file.name;
+    els.previewBlock.hidden = false;
+    els.dropzone.hidden = true;
+    hideStatus();
+  }
+
+  function resetToPicker(){
+    currentFile = null;
+    els.fileInput.value = '';
+    els.previewBlock.hidden = true;
+    els.dropzone.hidden = false;
+    hideStatus();
+  }
+
+  function showStatus(msg, isErr){
+    els.statusLine.textContent = msg;
+    els.statusLine.hidden = false;
+    els.statusLine.classList.toggle('err', !!isErr);
+  }
+  function hideStatus(){ els.statusLine.hidden = true; }
+
+  function resizeToBase64(file, maxSide){
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if(width > height && width > maxSide){ height = Math.round(height * maxSide / width); width = maxSide; }
+        else if(height > maxSide){ width = Math.round(width * maxSide / height); height = maxSide; }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        URL.revokeObjectURL(img.src);
+        resolve(dataUrl.split(',')[1]);
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  async function runAnalysis(){
+    if(!currentFile) return;
+    if(!apiKey){ openSetup(true, false); return; }
+
+    els.analyzeBtn.disabled = true;
+    els.retakeBtn.disabled = true;
+    showStatus('解析中…(数十秒かかることがあります)', false);
+
+    const prompt = [
+      'あなたは日本の中古品転売(せどり)に詳しい目利きです。',
+      '添付の写真は小売店の商品棚です。写っている商品のうち、ブランドが特定でき、日本のフリマアプリ「メルカリ」で転売した際に利益が出やすいと考えられるものを、最大8件ピックアップしてください。',
+      '一般的な日用品・ブランド不明の商品は含めないでください。写真に実際に写っているものだけを対象にしてください。',
+      '各商品について、商品名(item)、ブランド名(brand、不明なら空文字)、カテゴリ(category)、確度(confidence: high/medium/low)、中古参考価格の下限(est_low、円)と上限(est_high、円)、転売価値がある理由を30字以内で(reason)、メルカリ検索用の短いキーワード(keyword)を出力してください。',
+      '価格はあなたの一般知識に基づくおおまかな目安で構いません。'
+    ].join('\n');
+
+    try{
+      const base64 = await resizeToBase64(currentFile, 1600);
+      const body = {
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: 'image/jpeg', data: base64 } }
+          ]
+        }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: RESPONSE_SCHEMA
+        }
+      };
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent?key=' + encodeURIComponent(apiKey);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const json = await res.json().catch(() => null);
+      if(!res.ok){
+        const msg = (json && json.error && json.error.message) ? json.error.message : ('HTTPエラー ' + res.status);
+        throw new Error(msg);
+      }
+      const text = json && json.candidates && json.candidates[0] && json.candidates[0].content
+        && json.candidates[0].content.parts && json.candidates[0].content.parts[0]
+        && json.candidates[0].content.parts[0].text;
+      if(!text) throw new Error('AIから結果が返りませんでした。');
+      const data = JSON.parse(text);
+      const list = Array.isArray(data) ? data : [];
+      const cleaned = list
+        .filter(x => x && typeof x === 'object' && x.item)
+        .map(x => ({
+          item: String(x.item),
+          brand: x.brand ? String(x.brand) : '',
+          category: x.category ? String(x.category) : '',
+          confidence: ['high','medium','low'].includes(x.confidence) ? x.confidence : 'medium',
+          est_low: Number(x.est_low) || 0,
+          est_high: Number(x.est_high) || Number(x.est_low) || 0,
+          reason: x.reason ? String(x.reason) : '',
+          keyword: x.keyword ? String(x.keyword) : (x.brand ? String(x.brand) + ' ' + String(x.item) : String(x.item))
+        }));
+      if(cleaned.length === 0){
+        showStatus('狙い目の商品が見つかりませんでした。別の角度や、ロゴが大きく写る距離で撮り直してみてください。', false);
+      } else {
+        hideStatus();
+      }
+      renderItems(cleaned, false);
+    } catch(err){
+      console.error(err);
+      showStatus(friendlyError(err), true);
+    } finally {
+      els.analyzeBtn.disabled = false;
+      els.retakeBtn.disabled = false;
+    }
+  }
+
+  function friendlyError(err){
+    const m = String(err && err.message || err);
+    if(/API key not valid|API_KEY_INVALID/i.test(m)) return 'APIキーが正しくありません。⚙️から設定し直してください。';
+    if(/RESOURCE_EXHAUSTED|quota|429/i.test(m)) return '利用上限に達しました。しばらく待ってから再試行してください。';
+    if(/PERMISSION_DENIED|403/i.test(m)) return 'このAPIキーでは利用できませんでした。Google AI Studioでキーの状態を確認してください。';
+    if(/Failed to fetch|NetworkError/i.test(m)) return '通信に失敗しました。電波状況を確認してもう一度お試しください。';
+    return 'うまく解析できませんでした。もう一度お試しください。(' + m + ')';
+  }
+
+  function yen(n){ return '¥' + Math.round(n).toLocaleString('ja-JP'); }
+
+  function renderItems(items, demo){
+    els.demoBanner.hidden = !demo;
+    const sorted = items.slice().sort((a,b) => (b.est_high||0) - (a.est_high||0));
+    els.cardList.innerHTML = sorted.map(cardHtml).join('');
+  }
+
+  function cardHtml(x){
+    const confLabel = x.confidence === 'high' ? '確度: 高' : x.confidence === 'low' ? '確度: 低' : '確度: 中';
+    const priceText = x.est_low && x.est_high && x.est_low !== x.est_high
+      ? yen(x.est_low) + '〜' + yen(x.est_high)
+      : (x.est_high ? yen(x.est_high) + '前後' : '目安不明');
+    const url = 'https://jp.mercari.com/search?keyword=' + encodeURIComponent(x.keyword || x.item);
+    return (
+      '<div class="card">' +
+        '<div class="card-top">' +
+          '<div>' +
+            '<div class="item-name">' + escapeHtml(x.item) + '</div>' +
+            (x.brand ? '<div class="item-brand">' + escapeHtml(x.brand) + '</div>' : '') +
+          '</div>' +
+          '<span class="chip ' + x.confidence + '">' + confLabel + '</span>' +
+        '</div>' +
+        (x.category ? '<span class="category-tag">' + escapeHtml(x.category) + '</span>' : '') +
+        '<div class="price">' + priceText + '</div>' +
+        (x.reason ? '<div class="reason">' + escapeHtml(x.reason) + '</div>' : '') +
+        '<div class="card-actions">' +
+          '<a class="mercari-link" href="' + url + '" target="_blank" rel="noopener">メルカリで相場を確認 →</a>' +
+          '<span class="link-hint">「販売状況」を「売り切れ」に絞ると実際の落札額が見られます</span>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+})();
+</script>
+</body>
+</html>
