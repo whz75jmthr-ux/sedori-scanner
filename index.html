@@ -138,6 +138,7 @@
   .category-tag{ display:inline-block; font-size:11.5px; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:1px 7px; margin-top:8px; }
   .price{ font-family:var(--font-mono); font-size:19px; font-weight:600; color:var(--gold); font-variant-numeric:tabular-nums; margin:10px 0 6px; }
   .reason{ font-size:13px; opacity:.85; }
+  .evidence{ font-size:12px; color:var(--muted); margin-top:4px; }
   .card-actions{ margin-top:12px; display:flex; flex-direction:column; gap:4px; }
   .mercari-link{ display:inline-flex; align-items:center; gap:4px; font-size:13.5px; font-weight:600; color:var(--teal); text-decoration:none; }
   .mercari-link:hover{ text-decoration:underline; }
@@ -170,7 +171,7 @@
     <p class="field-hint"><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio でキーを発行する →</a></p>
 
     <label class="field-label" for="modelInput" style="margin-top:14px;">モデル名(通常は変更不要)</label>
-    <input type="text" id="modelInput" placeholder="gemini-3.6-flash" autocomplete="off">
+    <input type="text" id="modelInput" placeholder="gemini-3.7-flash" autocomplete="off">
     <p class="field-hint">「モデルが見つかりません」というエラーが出た場合は、エラー文中に書かれているモデル名にここを書き換えてください。</p>
 
     <div class="actions">
@@ -224,7 +225,7 @@
 
 <script>
 (function(){
-  const DEFAULT_MODEL = 'gemini-3.6-flash';
+  const DEFAULT_MODEL = 'gemini-3.7-flash';
   const STORAGE_KEY = 'sedori-scanner-gemini-key';
   const STORAGE_KEY_MODEL = 'sedori-scanner-gemini-model';
 
@@ -244,6 +245,7 @@
           properties: {
             item: { type: "string" },
             brand: { type: "string" },
+            evidence: { type: "string" },
             category: { type: "string" },
             confidence: { type: "string", enum: ["high","medium","low"] },
             est_low: { type: "number" },
@@ -251,7 +253,7 @@
             reason: { type: "string" },
             keyword: { type: "string" }
           },
-          required: ["item","confidence","est_low","est_high","keyword"]
+          required: ["item","evidence","confidence","est_low","est_high","keyword"]
         }
       }
     },
@@ -369,7 +371,7 @@
         const canvas = document.createElement('canvas');
         canvas.width = width; canvas.height = height;
         canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
         URL.revokeObjectURL(img.src);
         resolve(dataUrl.split(',')[1]);
       };
@@ -389,13 +391,20 @@
     const prompt = [
       'あなたは日本の中古品転売(せどり)に詳しい目利きです。',
       '添付の写真は小売店の商品棚です。写っている商品のうち、ブランドが特定でき、日本のフリマアプリ「メルカリ」で転売した際に利益が出やすいと考えられるものを、最大8件ピックアップしてください。',
-      '一般的な日用品・ブランド不明の商品は含めないでください。写真に実際に写っているものだけを対象にしてください。',
-      '各商品について、商品名(item)、ブランド名(brand、不明なら空文字)、カテゴリ(category)、確度(confidence: high/medium/low)、中古参考価格の下限(est_low、円)と上限(est_high、円)、転売価値がある理由を30字以内で(reason)、メルカリ検索用の短いキーワード(keyword)を出力してください。',
+      '一般的な日用品は含めないでください。写真に実際に写っているものだけを対象にし、写っていない商品を創作しないでください。',
+      '',
+      '【ブランド判定について、最も重要な注意】',
+      '- ロゴ・ブランド名の文字・タグ・パッケージ表記など、写真の中で実際に読み取れる文字や意匠を根拠にした場合だけ brand を記入してください。',
+      '- 商品の形やジャンルからの推測(例:「トートバッグだからおそらく〇〇というブランドだろう」)でブランド名を書くのは禁止です。誤認の原因になります。',
+      '- 文字やロゴがはっきり読めない場合は、brand を空文字にし、category と reason だけで判断理由を書いてください(ブランド不明でも、パッケージや型番から転売価値がありそうなら含めて構いません)。',
+      '- 判断の根拠にした具体的な文字・ロゴ・タグの内容を evidence に短く書いてください(例:「胸元のタグに『COACH』の刻印」「パッケージ側面に型番表記」)。読み取れる文字が無い場合は「ロゴ不明、形状から推定」のように正直に書いてください。',
+      '',
+      '各商品について、商品名(item)、ブランド名(brand、不明なら空文字)、判断根拠(evidence)、カテゴリ(category)、確度(confidence: high/medium/low。ロゴ等がはっきり読めた場合のみhigh)、中古参考価格の下限(est_low、円)と上限(est_high、円)、転売価値がある理由を30字以内で(reason)、メルカリ検索用の短いキーワード(keyword)を出力してください。',
       '価格はあなたの一般知識に基づくおおまかな目安で構いません。'
     ].join('\n');
 
     try{
-      const base64 = await resizeToBase64(currentFile, 1600);
+      const base64 = await resizeToBase64(currentFile, 2048);
       const body = {
         model: model || DEFAULT_MODEL,
         store: false,
@@ -432,6 +441,7 @@
         .map(x => ({
           item: String(x.item),
           brand: x.brand ? String(x.brand) : '',
+          evidence: x.evidence ? String(x.evidence) : '',
           category: x.category ? String(x.category) : '',
           confidence: ['high','medium','low'].includes(x.confidence) ? x.confidence : 'medium',
           est_low: Number(x.est_low) || 0,
@@ -502,6 +512,7 @@
         (x.category ? '<span class="category-tag">' + escapeHtml(x.category) + '</span>' : '') +
         '<div class="price">' + priceText + '</div>' +
         (x.reason ? '<div class="reason">' + escapeHtml(x.reason) + '</div>' : '') +
+        (x.evidence ? '<div class="evidence">根拠: ' + escapeHtml(x.evidence) + '</div>' : '') +
         '<div class="card-actions">' +
           '<a class="mercari-link" href="' + url + '" target="_blank" rel="noopener">メルカリで相場を確認 →</a>' +
           '<span class="link-hint">「販売状況」を「売り切れ」に絞ると実際の落札額が見られます</span>' +
