@@ -167,9 +167,11 @@
     const boxesSvg = S.items
       .map((it) => {
         const [ymin, xmin, ymax, xmax] = it.box_2d;
+        const labelY = Math.max(18, ymin - 4);
         return (
           '<rect x="' + xmin + '" y="' + ymin + '" width="' + (xmax - xmin) + '" height="' + (ymax - ymin) + '" fill="none" stroke="#E3A63E" stroke-width="6" />' +
-          '<text x="' + xmin + '" y="' + Math.max(24, ymin - 6) + '" fill="#E3A63E" font-size="34" font-weight="700" class="box-num">' + it.num + "</text>"
+          '<circle cx="' + (xmin + 16) + '" cy="' + (labelY - 12) + '" r="18" fill="#E3A63E" />' +
+          '<text x="' + (xmin + 16) + '" y="' + labelY + '" fill="#191203" font-size="26" font-weight="700" text-anchor="middle" class="box-num">' + it.num + "</text>"
         );
       })
       .join("");
