@@ -36,6 +36,61 @@
     return "¥" + Math.round(n).toLocaleString("ja-JP");
   }
 
+  // ---------- background-friendliness ----------
+  // A web page cannot keep running once the browser/tab is actually closed
+  // or the OS evicts it — there is no true background service without
+  // installing a native app. What we CAN do: (a) let the in-flight network
+  // call finish and tell the viewer about it even if they've switched away
+  // (Notification), and (b) persist progress continuously so a reload or
+  // an OS-triggered tab eviction while backgrounded doesn't lose work.
+  function requestNotifyPermission() {
+    if (typeof Notification === "undefined") return;
+    if (Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }
+  function notify(title, body) {
+    if (typeof Notification === "undefined") return;
+    if (Notification.permission !== "granted") return;
+    if (!document.hidden) return; // they're already looking at it — no need to interrupt
+    try {
+      new Notification(title, { body });
+    } catch (e) {
+      // Notification construction can throw in some mobile browser contexts
+      // (e.g. requires a Service Worker there) — this is a nice-to-have,
+      // never let it break the actual analysis flow.
+    }
+  }
+
+  const SESSION_KEY = "ss.session.v1";
+  function saveSession() {
+    try {
+      sessionStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify({ screen: S.screen, shelf: S.shelf, items: S.items, activeId: S.activeId, itemState: S.itemState })
+      );
+    } catch (e) {
+      // Best-effort convenience only (e.g. storage quota exceeded with large
+      // photos) — losing this never blocks the actual feature.
+    }
+  }
+  function restoreSession() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (!raw) return false;
+      const saved = JSON.parse(raw);
+      Object.assign(S, saved);
+      return !!S.shelf;
+    } catch (e) {
+      return false;
+    }
+  }
+  function clearSession() {
+    try {
+      sessionStorage.removeItem(SESSION_KEY);
+    } catch (e) {}
+  }
+
   // ---------- boot ----------
   document.addEventListener("DOMContentLoaded", () => {
     purgeExpired();
@@ -45,9 +100,10 @@
     document.getElementById("evalBtn").addEventListener("click", () => goTo("evalScreen"));
     if (!S.settings.apiKey && !S.settings.mockMode) {
       goTo("settingsScreen", { forced: true });
-    } else {
-      goTo("capture");
+      return;
     }
+    const resumed = restoreSession();
+    goTo(resumed ? S.screen : "capture");
   });
 
   const STEP_ORDER = [
@@ -89,6 +145,7 @@
     };
     ($screen()).innerHTML = "";
     $screen().appendChild(renderers[screen](opts || {}));
+    saveSession();
   }
 
   // ---------- 1. capture ----------
@@ -128,8 +185,9 @@
   }
 
   async function runDetection(statusEl) {
+    requestNotifyPermission();
     try {
-      statusEl.textContent = "商品を検出中…(数十秒かかることがあります)";
+      statusEl.textContent = "商品を検出中…(数十秒かかることがあります。画面を離れても終わったら通知します)";
       const schema = DETECTION_SCHEMA;
       const result = await GeminiClient.callWithValidation({
         apiKey: S.settings.apiKey,
@@ -145,19 +203,26 @@
         num: i + 1,
         box_2d: it.box_2d,
         category: it.category,
-        visible_features: it.visible_features
+        visible_features: it.visible_features,
+        resaleInterest: ["high", "medium", "low"].includes(it.resale_interest) ? it.resale_interest : "low",
+        resaleReason: it.resale_reason || "",
+        discountTagVisible: !!it.discount_tag_visible
       }));
       if (S.items.length === 0) {
         statusEl.className = "status-line";
         statusEl.textContent = "商品を検出できませんでした。別の角度で撮り直してみてください。";
+        notify("商品を検出できませんでした", "別の角度でもう一度撮影してみてください。");
         return;
       }
+      const highCount = S.items.filter((it) => it.resaleInterest === "high").length;
+      notify("商品検出が完了しました", S.items.length + "件検出(狙い目度の高いもの" + highCount + "件)。アプリに戻って確認してください。");
       goTo("detect");
     } catch (err) {
       console.error(err);
       const fe = GeminiClient.friendlyError(err);
       statusEl.className = "status-line err";
       statusEl.textContent = fe.message;
+      notify("解析に失敗しました", fe.message);
     }
   }
 
@@ -175,11 +240,15 @@
         );
       })
       .join("");
+    const highCount = S.items.filter((it) => it.resaleInterest === "high").length;
     root.appendChild(
       h(
         '<section class="panel">' +
           "<h2>検出された商品</h2>" +
           '<p class="desc">気になる商品の番号をタップすると、その商品だけ追加撮影して詳しく判定できます。この段階ではカテゴリと外観だけで、ブランドはまだ判定していません。</p>' +
+          (highCount > 0
+            ? '<div class="banner info">💰 見た目の手がかり(値引き表示・素材の良さなど)から、狙い目度の高い商品が' + highCount + "件あります。下のリストで上位に表示しています。</div>"
+            : '<div class="banner">今回の写真では、ブランド以外の強い手がかり(値引き表示など)は見当たりませんでした。気になる商品があれば個別に確認してください。</div>') +
           '<div class="shelf-wrap"><img src="data:image/jpeg;base64,' + S.shelf.base64 + '" alt="撮影した商品棚"><svg viewBox="0 0 1000 1000" preserveAspectRatio="none">' + boxesSvg + "</svg></div>" +
           '<div class="item-list" id="itemList"></div>' +
           '<div class="actions"><button class="btn" id="retakeShelf">棚を撮り直す</button></div>' +
@@ -187,14 +256,24 @@
       )
     );
     const list = root.querySelector("#itemList");
-    S.items.forEach((it) => {
+    const interestRank = { high: 2, medium: 1, low: 0 };
+    const sorted = S.items.slice().sort((a, b) => (interestRank[b.resaleInterest] || 0) - (interestRank[a.resaleInterest] || 0));
+    const interestLabel = { high: "狙い目度: 高", medium: "狙い目度: 中", low: "狙い目度: 低" };
+    sorted.forEach((it) => {
       const row = h(
         '<button type="button" class="item-row"><span class="num">' +
           it.num +
           '</span><span class="label"><div class="cat">' +
           escapeHtml(it.category) +
-          '</div><div class="feat">' +
+          ' <span class="badge ' +
+          (it.resaleInterest === "high" ? "confirmed" : it.resaleInterest === "medium" ? "candidate" : "unknown") +
+          '" style="margin-left:6px;">' +
+          interestLabel[it.resaleInterest] +
+          (it.discountTagVisible ? " 🏷️値引きあり" : "") +
+          "</span></div>" +
+          '<div class="feat">' +
           escapeHtml(it.visible_features) +
+          (it.resaleReason ? " — " + escapeHtml(it.resaleReason) : "") +
           "</div></span></button>"
       );
       row.addEventListener("click", () => {
@@ -203,7 +282,14 @@
       });
       list.appendChild(row);
     });
-    root.querySelector("#retakeShelf").addEventListener("click", () => goTo("capture"));
+    root.querySelector("#retakeShelf").addEventListener("click", () => {
+      S.shelf = null;
+      S.items = [];
+      S.itemState = {};
+      S.activeId = null;
+      clearSession();
+      goTo("capture");
+    });
     return root;
   }
 
@@ -258,6 +344,7 @@
     const state = itemOf(S.activeId);
     statusEl.hidden = false;
     statusEl.className = "status-line";
+    requestNotifyPermission();
     try {
       statusEl.textContent = "文字・特徴を読み取り中…";
       const ocr = await GeminiClient.callWithValidation({
@@ -283,12 +370,14 @@
       });
       state.candidate = candidate;
       state.level = computeIdentificationLevel(candidate, ocr);
+      notify("判定が完了しました", escapeHtml(item.category) + "の判定結果: " + LEVEL_LABEL[state.level] + "。アプリに戻って確認してください。");
       goTo("analysis");
     } catch (err) {
       console.error(err);
       const fe = GeminiClient.friendlyError(err);
       statusEl.className = "status-line err";
       statusEl.textContent = fe.message;
+      notify("解析に失敗しました", fe.message);
     }
   }
 

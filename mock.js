@@ -7,9 +7,30 @@
 
 const MOCK_DETECTION = {
   items: [
-    { box_2d: [120, 60, 420, 340], category: "バッグ", visible_features: "茶色のレザートートバッグ、持ち手は2本" },
-    { box_2d: [150, 400, 380, 620], category: "財布", visible_features: "黒い二つ折り財布" },
-    { box_2d: [500, 100, 780, 380], category: "靴", visible_features: "ベージュのスエード靴、片方のみ写っている" }
+    {
+      box_2d: [120, 60, 420, 340],
+      category: "バッグ",
+      visible_features: "茶色のレザートートバッグ、持ち手は2本",
+      resale_interest: "high",
+      resale_reason: "本革特有のシボと金具の重量感があり、値引きシールも見える",
+      discount_tag_visible: true
+    },
+    {
+      box_2d: [150, 400, 380, 620],
+      category: "財布",
+      visible_features: "黒い二つ折り財布",
+      resale_interest: "low",
+      resale_reason: "特に手がかりなし",
+      discount_tag_visible: false
+    },
+    {
+      box_2d: [500, 100, 780, 380],
+      category: "靴",
+      visible_features: "ベージュのスエード靴、片方のみ写っている",
+      resale_interest: "medium",
+      resale_reason: "未使用に近い状態で傷が見当たらない",
+      discount_tag_visible: false
+    }
   ]
 };
 

@@ -18,9 +18,14 @@ const DETECTION_SCHEMA = {
             maxItems: 4
           },
           category: { type: "string" },
-          visible_features: { type: "string" }
+          visible_features: { type: "string" },
+          // Brand-agnostic "is this worth a closer look" signal — never a
+          // brand/model guess, just visible value cues (see prompts.js).
+          resale_interest: { type: "string", enum: ["high", "medium", "low"] },
+          resale_reason: { type: "string" },
+          discount_tag_visible: { type: "boolean" }
         },
-        required: ["box_2d", "category", "visible_features"]
+        required: ["box_2d", "category", "visible_features", "resale_interest", "resale_reason", "discount_tag_visible"]
       }
     }
   },
