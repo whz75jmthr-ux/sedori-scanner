@@ -98,6 +98,7 @@
     document.getElementById("mockBanner").hidden = !S.settings.mockMode;
     document.getElementById("settingsBtn").addEventListener("click", () => goTo("settingsScreen"));
     document.getElementById("evalBtn").addEventListener("click", () => goTo("evalScreen"));
+    document.getElementById("inventoryBtn").addEventListener("click", () => goTo("inventory"));
     if (!S.settings.apiKey && !S.settings.mockMode) {
       goTo("settingsScreen", { forced: true });
       return;
@@ -141,7 +142,9 @@
       costs: renderCosts,
       verdict: renderVerdict,
       settingsScreen: renderSettings,
-      evalScreen: renderEval
+      evalScreen: renderEval,
+      inventory: renderInventory,
+      itemDetail: renderItemDetail
     };
     ($screen()).innerHTML = "";
     $screen().appendChild(renderers[screen](opts || {}));
@@ -700,7 +703,12 @@
         (safeMaxPurchase !== null ? "<tr><td>安全な仕入れ上限(目標利益込み)</td><td>" + yen(safeMaxPurchase) + "</td></tr>" : "") +
         "<tr><td>判定日時</td><td>" + new Date().toLocaleString("ja-JP") + "</td></tr>" +
         "</table>" +
-        '<div class="actions" style="justify-content:center;"><button class="btn" id="backToCosts">費用に戻る</button><button class="btn" id="anotherItem">別の商品を見る</button><button class="btn btn-primary" id="recordEval">評価用に記録</button></div>' +
+        '<div class="field-row" style="text-align:left;margin-top:16px;"><label class="field-label">店舗名(任意)</label><input type="text" id="storeName" value="' +
+        escapeHtml(state.storeName || "") +
+        '" placeholder="例: セカンドストリート〇〇店"></div>' +
+        '<button class="btn btn-primary btn-block" id="saveAsPurchased" style="font-size:17px;padding:16px;">📦 仕入れ商品として保存</button>' +
+        '<p class="status-line" id="saveStatus" hidden></p>' +
+        '<div class="actions" style="justify-content:center;"><button class="btn" id="backToCosts">費用に戻る</button><button class="btn" id="anotherItem">別の商品を見る</button><button class="btn" id="recordEval">評価用に記録</button></div>' +
         "</section>"
     );
     root.querySelector("#backToCosts").addEventListener("click", () => goTo("costs"));
@@ -718,7 +726,62 @@
       });
       alert("精度検証用データとして記録しました。設定画面の📊から確認できます。");
     });
+    root.querySelector("#saveAsPurchased").addEventListener("click", async () => {
+      const statusEl = root.querySelector("#saveStatus");
+      state.storeName = root.querySelector("#storeName").value.trim();
+      statusEl.hidden = false;
+      statusEl.className = "status-line";
+      statusEl.textContent = "保存中…";
+      try {
+        const record = buildItemRecord(item, state, { profit, breakEven, safeMaxPurchase, soldSummary: summary, verdict: v });
+        await ItemsDB.put(record);
+        clearSession();
+        statusEl.className = "status-line ok";
+        statusEl.textContent = "保存しました(管理番号: " + record.id + ")";
+        notify("仕入れ商品として保存しました", (state.correction && state.correction.brand ? state.correction.brand : item.category) + " を保存しました。");
+      } catch (e) {
+        console.error(e);
+        statusEl.className = "status-line err";
+        statusEl.textContent = "保存に失敗しました。端末の空き容量を確認するか、もう一度お試しください。";
+      }
+    });
     return root;
+  }
+
+  // Builds one persisted inventory record from the current session's
+  // detection/analysis/market/cost state. Fields are grouped to match the
+  // three-tier trust model used later for listing generation:
+  // image-confirmed vs AI-guessed-candidate vs user-confirmed.
+  function buildItemRecord(item, state, calc) {
+    const now = new Date().toISOString();
+    return {
+      id: ItemsDB.newId(),
+      status: "purchased",
+      createdAt: now,
+      updatedAt: now,
+      storeName: state.storeName || "",
+      category: item.category,
+      visibleFeatures: item.visible_features,
+      resaleInterest: item.resaleInterest,
+      photos: { closeups: state.photos || [], damage: [], home: [] },
+      ocr: state.ocr,
+      candidate: state.candidate,
+      identificationLevel: state.level,
+      correction: state.correction,
+      confirmedFields: {
+        brand: { value: (state.correction && state.correction.brand) || (state.candidate && state.candidate.exact_ocr_brand_match && state.candidate.brand_candidates[0] && state.candidate.brand_candidates[0].brand) || "", statusTag: state.correction && state.correction.brand ? "user_confirmed" : "unconfirmed" },
+        model: { value: (state.correction && state.correction.model) || "", statusTag: state.correction && state.correction.model ? "user_confirmed" : "unconfirmed" }
+      },
+      purchasePrice: (state.costs && state.costs.purchasePrice) || 0,
+      costs: state.costs || {},
+      storeMarket: state.marketSummary || null,
+      homeMarket: null,
+      profitCalc: calc,
+      conditionNotes: (state.ocr && state.ocr.condition_notes) || "",
+      authenticityWarnings: (state.candidate && state.candidate.warnings) || [],
+      missingInfo: (state.ocr && state.ocr.missing_angles) || [],
+      listing: { titleDrafts: [], chosenTitle: "", description: "", price: null, hashtags: [] }
+    };
   }
 
   // ---------- settings ----------
@@ -842,6 +905,184 @@
         clearEvalRecords();
         goTo("evalScreen");
       }
+    });
+    return root;
+  }
+
+  // ---------- inventory (home mode: item list) ----------
+  let inventoryFilter = "all";
+  let inventorySearch = "";
+  let inventorySort = "updatedAt_desc";
+  let inventoryDetailId = null;
+
+  function itemDisplayName(rec) {
+    const brand = rec.confirmedFields && rec.confirmedFields.brand && rec.confirmedFields.brand.value;
+    return (brand ? brand + " " : "") + rec.category;
+  }
+  function itemPlannedPrice(rec) {
+    if (rec.listing && rec.listing.price) return rec.listing.price;
+    if (rec.homeMarket && rec.homeMarket.sufficient) return rec.homeMarket.median;
+    if (rec.storeMarket && rec.storeMarket.sufficient) return rec.storeMarket.median;
+    return null;
+  }
+  function itemMissingTasks(rec) {
+    const missing = [];
+    if (rec.identificationLevel !== "confirmed") missing.push("商品特定");
+    if (!rec.photos || !rec.photos.home || rec.photos.home.length === 0) missing.push("出品用写真");
+    if (!rec.listing || !rec.listing.chosenTitle) missing.push("タイトル");
+    if (!rec.listing || !rec.listing.description) missing.push("説明文");
+    return missing;
+  }
+
+  function renderInventory() {
+    const root = h('<div><section class="panel"><h2>在庫一覧</h2><p class="status-line">読み込み中…</p></section></div>');
+    ItemsDB.listAll()
+      .then((all) => renderInventoryBody(root, all))
+      .catch((e) => {
+        console.error(e);
+        root.querySelector(".panel").innerHTML = "<h2>在庫一覧</h2><p class=\"status-line err\">読み込みに失敗しました。</p>";
+      });
+    return root;
+  }
+
+  function renderInventoryBody(root, all) {
+    const filtered = all
+      .filter((r) => inventoryFilter === "all" || r.status === inventoryFilter)
+      .filter((r) => {
+        if (!inventorySearch) return true;
+        const q = inventorySearch.toLowerCase();
+        const hay = [
+          r.id,
+          r.category,
+          r.storeName,
+          (r.confirmedFields && r.confirmedFields.brand && r.confirmedFields.brand.value) || "",
+          (r.confirmedFields && r.confirmedFields.model && r.confirmedFields.model.value) || "",
+          (r.correction && r.correction.note) || ""
+        ]
+          .join(" ")
+          .toLowerCase();
+        return hay.includes(q);
+      });
+    const [sortKey, sortDir] = inventorySort.split("_");
+    const sortVal = (r) => {
+      if (sortKey === "updatedAt") return new Date(r.updatedAt).getTime();
+      if (sortKey === "createdAt") return new Date(r.createdAt).getTime();
+      if (sortKey === "profit") return (r.profitCalc && r.profitCalc.profit) || -Infinity;
+      if (sortKey === "purchasePrice") return r.purchasePrice || 0;
+      if (sortKey === "plannedPrice") return itemPlannedPrice(r) || 0;
+      return 0;
+    };
+    filtered.sort((a, b) => (sortDir === "asc" ? sortVal(a) - sortVal(b) : sortVal(b) - sortVal(a)));
+
+    const tabs = [{ key: "all", label: "すべて" }].concat(ITEM_STATUSES);
+    root.querySelector(".panel").innerHTML =
+      "<h2>在庫一覧(" + all.length + "件)</h2>" +
+      '<div class="status-tabs" id="statusTabs">' +
+      tabs.map((t) => '<button data-key="' + t.key + '" class="' + (inventoryFilter === t.key ? "active" : "") + '">' + t.label + (t.key !== "all" ? "(" + all.filter((r) => r.status === t.key).length + ")" : "") + "</button>").join("") +
+      "</div>" +
+      '<input type="text" id="invSearch" placeholder="ブランド・商品名・型番・管理番号・店舗名・メモで検索" value="' + escapeHtml(inventorySearch) + '" style="margin-bottom:10px;">' +
+      '<div class="sort-row"><select id="invSort">' +
+      [
+        ["updatedAt_desc", "更新日が新しい順"],
+        ["createdAt_desc", "保存日が新しい順"],
+        ["profit_desc", "予想利益が高い順"],
+        ["purchasePrice_desc", "仕入価格が高い順"],
+        ["plannedPrice_desc", "出品予定価格が高い順"]
+      ]
+        .map(([k, l]) => '<option value="' + k + '"' + (inventorySort === k ? " selected" : "") + ">" + l + "</option>")
+        .join("") +
+      "</select></div>" +
+      '<div id="invList"></div>';
+
+    root.querySelectorAll("#statusTabs button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        inventoryFilter = btn.dataset.key;
+        renderInventoryBody(root, all);
+      });
+    });
+    root.querySelector("#invSearch").addEventListener("input", (e) => {
+      inventorySearch = e.target.value;
+      renderInventoryBody(root, all);
+    });
+    root.querySelector("#invSort").addEventListener("change", (e) => {
+      inventorySort = e.target.value;
+      renderInventoryBody(root, all);
+    });
+
+    const listEl = root.querySelector("#invList");
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<p class="status-line">' + (all.length === 0 ? "まだ保存された商品がありません。判定結果画面の「仕入れ商品として保存」から追加できます。" : "条件に一致する商品がありません。") + "</p>";
+      return;
+    }
+    listEl.innerHTML = filtered
+      .map((r) => {
+        const thumb = r.photos && r.photos.closeups && r.photos.closeups[0] ? "data:image/jpeg;base64," + r.photos.closeups[0].base64 : "";
+        const planned = itemPlannedPrice(r);
+        const missing = itemMissingTasks(r);
+        return (
+          '<button type="button" class="inv-card" data-id="' + r.id + '">' +
+          (thumb ? '<img src="' + thumb + '">' : '<img alt="">') +
+          '<div class="body"><div class="top-row"><span class="name">' +
+          escapeHtml(itemDisplayName(r)) +
+          '</span><span class="badge candidate">' +
+          escapeHtml(STATUS_LABEL[r.status] || r.status) +
+          "</span></div>" +
+          '<div class="id">' + r.id + "</div>" +
+          '<div class="nums">仕入 ' + yen(r.purchasePrice || 0) + (planned ? " ／ 出品予定 " + yen(planned) : "") + (r.profitCalc ? " ／ 予想利益 " + yen(r.profitCalc.profit || 0) : "") + "</div>" +
+          (missing.length ? '<div class="missing">不足: ' + missing.join("、") + "</div>" : "") +
+          "</div></button>"
+        );
+      })
+      .join("");
+    listEl.querySelectorAll(".inv-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        inventoryDetailId = card.dataset.id;
+        goTo("itemDetail");
+      });
+    });
+  }
+
+  // ---------- item detail (minimal for now — full home-mode listing prep is the next phase) ----------
+  function renderItemDetail() {
+    const root = h('<div><section class="panel"><p class="status-line">読み込み中…</p></section></div>');
+    ItemsDB.get(inventoryDetailId).then((rec) => {
+      if (!rec) {
+        root.querySelector(".panel").innerHTML = "<p class=\"status-line err\">見つかりませんでした。</p>";
+        return;
+      }
+      const planned = itemPlannedPrice(rec);
+      root.querySelector(".panel").innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:center;"><h2>' + escapeHtml(itemDisplayName(rec)) + "</h2><span class=\"badge candidate\">" + escapeHtml(STATUS_LABEL[rec.status]) + "</span></div>" +
+        '<p class="field-hint">管理番号: ' + rec.id + " ／ 店舗: " + escapeHtml(rec.storeName || "未入力") + "</p>" +
+        '<label class="field-label">状態を変更</label>' +
+        '<select id="statusSelect">' +
+        ITEM_STATUSES.map((s) => '<option value="' + s.key + '"' + (rec.status === s.key ? " selected" : "") + ">" + s.label + "</option>").join("") +
+        "</select>" +
+        '<table class="kv-table" style="margin-top:16px;">' +
+        "<tr><td>カテゴリ</td><td>" + escapeHtml(rec.category) + "</td></tr>" +
+        "<tr><td>判定レベル</td><td>" + escapeHtml(LEVEL_LABEL[rec.identificationLevel] || "") + "</td></tr>" +
+        "<tr><td>仕入価格</td><td>" + yen(rec.purchasePrice || 0) + "</td></tr>" +
+        (planned ? "<tr><td>出品予定価格</td><td>" + yen(planned) + "</td></tr>" : "") +
+        (rec.profitCalc ? "<tr><td>予想利益</td><td>" + yen(rec.profitCalc.profit || 0) + "</td></tr>" : "") +
+        "<tr><td>保存日時</td><td>" + new Date(rec.createdAt).toLocaleString("ja-JP") + "</td></tr>" +
+        "<tr><td>最終更新</td><td>" + new Date(rec.updatedAt).toLocaleString("ja-JP") + "</td></tr>" +
+        "</table>" +
+        (rec.authenticityWarnings && rec.authenticityWarnings.length ? '<div class="banner warn">' + rec.authenticityWarnings.map(escapeHtml).join(" / ") + "</div>" : "") +
+        '<div class="banner">🚧 写真追加・検品入力・タイトル/説明文の生成など「出品準備」画面は次のステップで実装予定です。現時点では状態の確認・変更と削除のみ行えます。</div>' +
+        '<div class="actions"><button class="btn" id="backToInv">一覧に戻る</button><button class="btn btn-danger" id="deleteItem">削除</button></div>';
+
+      root.querySelector("#statusSelect").addEventListener("change", async (e) => {
+        rec.status = e.target.value;
+        rec.updatedAt = new Date().toISOString();
+        await ItemsDB.put(rec);
+      });
+      root.querySelector("#backToInv").addEventListener("click", () => goTo("inventory"));
+      root.querySelector("#deleteItem").addEventListener("click", async () => {
+        if (confirm("この商品を削除します。よろしいですか?")) {
+          await ItemsDB.remove(rec.id);
+          goTo("inventory");
+        }
+      });
     });
     return root;
   }

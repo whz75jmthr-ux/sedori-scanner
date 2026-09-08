@@ -39,6 +39,21 @@ const AUTHENTICITY_NOTICE = [
   "高額品や真贋リスクが高いと感じる場合は、専門の鑑定サービスの利用も検討してください。"
 ];
 
+// Inventory lifecycle: an item moves through these in order (skipping
+// forward/back is allowed — this is a checklist of stages, not a strict
+// state machine).
+const ITEM_STATUSES = [
+  { key: "store_reviewing", label: "店舗で確認中" },
+  { key: "purchase_candidate", label: "仕入れ候補" },
+  { key: "purchased", label: "購入済み" },
+  { key: "listing_prep", label: "出品準備中" },
+  { key: "listing_ready", label: "出品準備完了" },
+  { key: "listed", label: "出品済み" },
+  { key: "sold", label: "売却済み" },
+  { key: "skipped", label: "見送り" }
+];
+const STATUS_LABEL = ITEM_STATUSES.reduce((m, s) => ((m[s.key] = s.label), m), {});
+
 if (typeof module !== "undefined") {
-  module.exports = { getReshootAngles, getConditionChecks, AUTHENTICITY_NOTICE, RESHOOT_ANGLES, CONDITION_CHECKS };
+  module.exports = { getReshootAngles, getConditionChecks, AUTHENTICITY_NOTICE, RESHOOT_ANGLES, CONDITION_CHECKS, ITEM_STATUSES, STATUS_LABEL };
 }
