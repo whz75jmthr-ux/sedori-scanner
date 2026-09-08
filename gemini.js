@@ -57,6 +57,7 @@ function friendlyError(err) {
   if (/API key not valid|API_KEY_INVALID/i.test(m)) return { code: "bad_key", message: "APIキーが正しくありません。設定から確認してください。" };
   if (/no longer available|not found|not supported/i.test(m)) return { code: "bad_model", message: "モデル名が古い可能性があります。設定の「モデル名」を、エラー詳細に出ているモデル名に書き換えてください。詳細: " + m };
   if (/RESOURCE_EXHAUSTED|quota|429/i.test(m)) return { code: "rate_limited", message: "利用上限に達しました。しばらく待ってから再試行してください。" };
+  if (/high demand|overloaded|UNAVAILABLE|503/i.test(m)) return { code: "overloaded", message: "Google側のサーバーが混雑しています(アプリの不具合ではありません)。1〜2分待ってからもう一度お試しください。" };
   if (/PERMISSION_DENIED|403/i.test(m)) return { code: "forbidden", message: "このAPIキーでは利用できませんでした。Google AI Studioでキーの状態を確認してください。" };
   if (/Failed to fetch|NetworkError/i.test(m)) return { code: "network", message: "通信に失敗しました。電波状況を確認してもう一度お試しください。" };
   return { code: "unknown", message: "解析に失敗しました。もう一度お試しください。(" + m + ")" };
