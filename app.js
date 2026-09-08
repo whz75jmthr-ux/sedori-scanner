@@ -535,16 +535,64 @@
     const root = h(
       '<section class="panel">' +
         "<h2>メルカリ相場</h2>" +
-        '<p class="desc">販売中の価格ではなく「売り切れ」実績を基準にします。他サイトの希望価格も混ぜないでください。同じブランド・型番・カテゴリ・サイズ・近い状態のものを、可能なら5〜10件集めてください。</p>' +
+        '<p class="desc">販売中の価格ではなく「売り切れ」実績を基準にします。同じブランド・型番・カテゴリ・サイズ・近い状態のものを、可能なら5〜10件集めてください。</p>' +
         '<a class="mercari-link" href="' + url + '" target="_blank" rel="noopener">🔍 「' + escapeHtml(keyword) + '」の売り切れをメルカリで見る →</a>' +
-        '<h3 style="margin-top:16px;">見つけた売り切れ価格を入力</h3>' +
+        '<div class="dropzone" id="ssDz" role="button" tabindex="0" style="margin-top:14px;"><span class="icon">📸</span><span class="cta">検索結果のスクリーンショットを読み込む</span><div class="hint">価格の数字だけをAIが読み取ります(自動入力・複数枚可)</div></div>' +
+        '<input type="file" id="ssInput" accept="image/*" multiple hidden>' +
+        '<p class="status-line" id="ocrStatus" hidden></p>' +
+        '<h3 style="margin-top:16px;">入力された売り切れ価格(手動で追加・修正も可)</h3>' +
         '<div class="price-list" id="priceList"></div>' +
-        '<button class="btn btn-sm" id="addPrice">+ 価格を追加</button>' +
+        '<button class="btn btn-sm" id="addPrice">+ 手動で価格を追加</button>' +
         '<p class="status-line" id="marketSummary"></p>' +
         '<div class="actions"><button class="btn" id="backToAnalysis">判定に戻る</button><button class="btn btn-primary" id="toCosts">次へ(費用)</button></div>' +
         "</section>"
     );
     const priceList = root.querySelector("#priceList");
+    const ssDz = root.querySelector("#ssDz");
+    const ssInput = root.querySelector("#ssInput");
+    const ocrStatus = root.querySelector("#ocrStatus");
+    ssDz.addEventListener("click", () => ssInput.click());
+    ssDz.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        ssInput.click();
+      }
+    });
+    ssInput.addEventListener("change", async (e) => {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
+      ocrStatus.hidden = false;
+      ocrStatus.className = "status-line";
+      ocrStatus.textContent = "画像から価格を読み取り中…";
+      requestNotifyPermission();
+      try {
+        const images = [];
+        for (const f of files) images.push(await GeminiClient.resizeToBase64(f, 2048, 0.92));
+        const result = await GeminiClient.callWithValidation({
+          apiKey: S.settings.apiKey,
+          model: S.settings.model,
+          promptText: Prompts.SOLD_PRICE_PROMPT,
+          images,
+          schema: SOLD_PRICE_SCHEMA,
+          validate: validateAgainstSchema,
+          mock: S.settings.mockMode ? MockData.MOCK_SOLD_PRICES : null
+        });
+        const found = (result.prices || []).map(Number).filter((n) => Number.isFinite(n) && n > 0);
+        if (state.soldPrices.length === 1 && !state.soldPrices[0]) state.soldPrices = [];
+        state.soldPrices.push(...found);
+        renderPrices();
+        updateSummary();
+        ocrStatus.className = "status-line ok";
+        ocrStatus.textContent = found.length + "件の価格を読み取りました。" + (result.excluded_note ? "(" + result.excluded_note + ")" : "") + " 内容を確認し、間違っていれば下で修正・削除してください。";
+        notify("価格の読み取りが完了しました", found.length + "件の価格を自動入力しました。");
+      } catch (err) {
+        console.error(err);
+        const fe = GeminiClient.friendlyError(err);
+        ocrStatus.className = "status-line err";
+        ocrStatus.textContent = fe.message;
+        notify("価格の読み取りに失敗しました", fe.message);
+      }
+    });
     function renderPrices() {
       priceList.innerHTML = "";
       state.soldPrices.forEach((val, i) => {

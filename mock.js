@@ -69,6 +69,8 @@ const MOCK_CANDIDATE = {
   warnings: ["型番タグは未確認のため、型番までは判定していません"]
 };
 
+const MOCK_SOLD_PRICES = { prices: [4200, 4500, 4800], excluded_note: "" };
+
 if (typeof window !== "undefined") {
-  window.MockData = { MOCK_DETECTION, MOCK_OCR, MOCK_CANDIDATE };
+  window.MockData = { MOCK_DETECTION, MOCK_OCR, MOCK_CANDIDATE, MOCK_SOLD_PRICES };
 }

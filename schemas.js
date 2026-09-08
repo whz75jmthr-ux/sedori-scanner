@@ -149,6 +149,20 @@ function validateAgainstSchema(value, schema, path) {
   return errors;
 }
 
+// Reads price numbers OUT OF a screenshot the user took of Mercari's own
+// sold-item search results. This is OCR on real pixels the user is already
+// looking at — not a market estimate — so it stays consistent with "never
+// let the AI invent a number": it can only report digits actually printed
+// in the image, never top up with general knowledge about typical prices.
+const SOLD_PRICE_SCHEMA = {
+  type: "object",
+  properties: {
+    prices: { type: "array", items: { type: "number" } },
+    excluded_note: { type: "string" }
+  },
+  required: ["prices", "excluded_note"]
+};
+
 if (typeof module !== "undefined") {
-  module.exports = { DETECTION_SCHEMA, OCR_SCHEMA, CANDIDATE_SCHEMA, validateAgainstSchema };
+  module.exports = { DETECTION_SCHEMA, OCR_SCHEMA, CANDIDATE_SCHEMA, SOLD_PRICE_SCHEMA, validateAgainstSchema };
 }

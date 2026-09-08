@@ -61,6 +61,14 @@ function buildCandidatePrompt(category, ocrResult) {
   ].join("\n");
 }
 
+const SOLD_PRICE_PROMPT = [
+  "添付の画像は、メルカリの「売り切れ」検索結果一覧のスクリーンショットです。",
+  "画像の中に実際に印字されている価格の数字だけを読み取って、prices配列(円、数値)に出力してください。",
+  "一般的な相場の知識で数字を補ったり、見えていない価格を推測したりしないでください。文字が小さすぎる・切れている・ぼやけているなどで確信が持てない金額は含めないでください。",
+  "「送料込み」等の表記や商品名は無視し、価格の数字のみを対象にしてください。販売中(まだ売れていない)の値札が混ざっている場合は含めないでください。",
+  "読み取れなかった項目や除外した項目がある場合は、その理由を excluded_note に短く書いてください(なければ空文字)。"
+].join("\n");
+
 if (typeof window !== "undefined") {
-  window.Prompts = { DETECTION_PROMPT, buildOcrPrompt, buildCandidatePrompt };
+  window.Prompts = { DETECTION_PROMPT, buildOcrPrompt, buildCandidatePrompt, SOLD_PRICE_PROMPT };
 }
