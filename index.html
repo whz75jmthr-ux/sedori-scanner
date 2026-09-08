@@ -6,24 +6,18 @@
 <meta name="theme-color" content="#14171C">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="せどりスキャナー">
-<title>せどりスキャナー</title>
+<meta name="apple-mobile-web-app-title" content="仕入れスキャナー">
+<title>仕入れスキャナー</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap');
 
   :root{
-    --bg:#F2F3EF;
-    --surface:#FFFFFF;
-    --surface-2:#F7F7F3;
-    --ink:#191B1F;
-    --muted:#5B6270;
-    --line:#E1E3DC;
-    --gold:#A9761F;
-    --gold-bg:#F1E2C0;
-    --teal:#1F7B70;
-    --teal-bg:#D9EFEC;
-    --danger:#B23A2E;
-    --danger-bg:#F5DFDA;
+    --bg:#F2F3EF; --surface:#FFFFFF; --surface-2:#F7F7F3;
+    --ink:#191B1F; --muted:#5B6270; --line:#E1E3DC;
+    --gold:#A9761F; --gold-bg:#F1E2C0;
+    --teal:#1F7B70; --teal-bg:#D9EFEC;
+    --danger:#B23A2E; --danger-bg:#F5DFDA;
+    --good:#2F7D5A; --good-bg:#E1F0E7;
     --radius:14px;
     --font-display:'Zen Kaku Gothic New','Hiragino Sans','Noto Sans JP',sans-serif;
     --font-body:'Noto Sans JP','Hiragino Sans',sans-serif;
@@ -36,6 +30,7 @@
       --gold:#E3A63E; --gold-bg:#3A2E14;
       --teal:#4FB3A9; --teal-bg:#17302D;
       --danger:#E2685A; --danger-bg:#3A211D;
+      --good:#4FAE81; --good-bg:#153024;
     }
   }
   :root[data-theme="dark"]{
@@ -44,6 +39,7 @@
     --gold:#E3A63E; --gold-bg:#3A2E14;
     --teal:#4FB3A9; --teal-bg:#17302D;
     --danger:#E2685A; --danger-bg:#3A211D;
+    --good:#4FAE81; --good-bg:#153024;
   }
 
   *{box-sizing:border-box;}
@@ -57,563 +53,153 @@
 
   header.top{
     position:sticky; top:0; z-index:5; background:var(--bg);
-    padding:calc(20px + env(safe-area-inset-top)) 0 14px; border-bottom:1px solid var(--line);
+    padding:calc(16px + env(safe-area-inset-top)) 0 12px; border-bottom:1px solid var(--line);
   }
-  .brand{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+  .brand{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
   .brand-left{ display:flex; align-items:baseline; gap:10px; }
-  .mark{
-    font-family:var(--font-mono); font-size:13px; color:var(--gold);
-    background:var(--gold-bg); padding:2px 7px; border-radius:5px; letter-spacing:.02em;
-  }
-  h1{ font-family:var(--font-display); font-weight:900; font-size:22px; margin:0; text-wrap:balance; }
-  .tagline{ margin:6px 0 0; font-size:14px; color:var(--muted); }
-  .gear{
-    background:none; border:1px solid var(--line); border-radius:9px;
-    width:34px; height:34px; font-size:16px; cursor:pointer; color:var(--ink);
-    flex-shrink:0;
-  }
+  .mark{ font-family:var(--font-mono); font-size:12px; color:var(--gold); background:var(--gold-bg); padding:2px 7px; border-radius:5px; }
+  h1{ font-family:var(--font-display); font-weight:900; font-size:19px; margin:0; }
+  .icon-btn{ background:none; border:1px solid var(--line); border-radius:9px; width:34px; height:34px; font-size:15px; cursor:pointer; color:var(--ink); flex-shrink:0; }
+  .icon-row{ display:flex; gap:8px; }
+  .mock-banner{ background:var(--danger); color:#fff; text-align:center; font-size:12px; font-weight:700; padding:4px; letter-spacing:.03em; }
 
-  .steps{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:20px 0; }
-  .step{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:12px 10px; }
-  .step .n{ font-family:var(--font-mono); font-size:12px; color:var(--gold); display:block; margin-bottom:4px; }
-  .step p{ margin:0; font-size:12.5px; }
+  .steps-nav{ display:flex; gap:4px; margin:12px 0; overflow-x:auto; padding-bottom:2px; }
+  .steps-nav .dot{ font-family:var(--font-mono); font-size:10.5px; color:var(--muted); background:var(--surface-2); border:1px solid var(--line); border-radius:999px; padding:3px 9px; white-space:nowrap; }
+  .steps-nav .dot.active{ color:var(--gold); border-color:var(--gold); font-weight:700; }
+  .steps-nav .dot.done{ color:var(--teal); border-color:var(--teal); }
 
-  .panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:20px; }
+  .panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:16px; }
   .panel h2{ font-family:var(--font-display); font-size:16px; margin:0 0 10px; }
+  .panel h3{ font-family:var(--font-display); font-size:14px; margin:16px 0 8px; }
   .panel p.desc{ font-size:13px; color:var(--muted); margin:0 0 14px; }
 
   label.field-label{ display:block; font-size:12.5px; font-weight:600; margin-bottom:6px; }
-  input[type="text"], input[type="password"]{
+  input[type="text"], input[type="password"], input[type="number"]{
     width:100%; font-family:var(--font-mono); font-size:14px;
     padding:10px 12px; border-radius:9px; border:1px solid var(--line);
     background:var(--surface-2); color:var(--ink);
   }
-  input:focus-visible, .dropzone:focus-visible, .btn:focus-visible{ outline:2px solid var(--teal); outline-offset:2px; }
+  input[type="checkbox"]{ width:18px; height:18px; }
+  textarea{ width:100%; font-family:var(--font-body); font-size:14px; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); resize:vertical; min-height:60px; }
+  input:focus-visible, .dropzone:focus-visible, .btn:focus-visible, [tabindex]:focus-visible{ outline:2px solid var(--teal); outline-offset:2px; }
   .field-hint{ font-size:12px; color:var(--muted); margin-top:6px; }
   .field-hint a{ color:var(--teal); }
+  .field-row{ margin-bottom:14px; }
+  .field-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 
-  .dropzone{
-    border:1.5px dashed var(--line); border-radius:var(--radius); padding:28px 16px;
-    text-align:center; cursor:pointer; transition:border-color .15s ease, background .15s ease;
-  }
+  .dropzone{ border:1.5px dashed var(--line); border-radius:var(--radius); padding:26px 16px; text-align:center; cursor:pointer; }
   .dropzone:hover{ border-color:var(--gold); background:var(--surface-2); }
-  .dropzone .icon{ font-size:28px; display:block; margin-bottom:8px; }
-  .dropzone .cta{ font-weight:600; font-size:14.5px; }
+  .dropzone .icon{ font-size:26px; display:block; margin-bottom:6px; }
+  .dropzone .cta{ font-weight:700; font-size:15px; }
   .dropzone .hint{ font-size:12.5px; color:var(--muted); margin-top:4px; }
 
-  .preview-row{ display:flex; gap:12px; align-items:center; }
-  .preview-row img{ width:88px; height:88px; object-fit:cover; border-radius:10px; border:1px solid var(--line); flex-shrink:0; }
-  .preview-meta{ flex:1; min-width:0; }
-  .preview-meta .name{ font-size:13px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-
-  .btn{
-    font-family:var(--font-body); font-weight:600; font-size:14.5px; border-radius:10px;
-    border:1px solid var(--line); background:var(--surface-2); color:var(--ink);
-    padding:10px 16px; cursor:pointer;
-  }
+  .btn{ font-family:var(--font-body); font-weight:700; font-size:15px; border-radius:11px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); padding:12px 18px; cursor:pointer; }
   .btn-primary{ background:var(--gold); border-color:var(--gold); color:#191203; }
-  .btn-primary:disabled{ opacity:.55; cursor:not-allowed; }
+  .btn-primary:disabled, .btn:disabled{ opacity:.5; cursor:not-allowed; }
+  .btn-sm{ font-size:13px; padding:8px 12px; border-radius:9px; }
+  .btn-danger{ background:var(--danger-bg); border-color:var(--danger); color:var(--danger); }
+  .btn-block{ width:100%; }
   .actions{ display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
 
   .status-line{ font-size:13.5px; color:var(--muted); margin-top:10px; }
   .status-line.err{ color:var(--danger); }
+  .status-line.ok{ color:var(--good); }
 
-  .banner{
-    display:flex; gap:8px; align-items:center; background:var(--teal-bg); color:var(--teal);
-    border-radius:10px; padding:9px 12px; font-size:13px; font-weight:600; margin-bottom:14px;
-  }
+  .banner{ display:flex; gap:8px; align-items:flex-start; border-radius:10px; padding:10px 12px; font-size:13px; font-weight:600; margin-bottom:14px; }
+  .banner.info{ background:var(--teal-bg); color:var(--teal); }
   .banner.warn{ background:var(--danger-bg); color:var(--danger); }
+  .banner.mock{ background:var(--danger-bg); color:var(--danger); }
 
-  .results h2{ font-family:var(--font-display); font-size:16px; margin:0 0 12px; }
-  .cards{ display:flex; flex-direction:column; gap:12px; }
-  .card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; }
-  .card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px; }
-  .chip{ font-family:var(--font-mono); font-size:11px; letter-spacing:.02em; padding:3px 8px; border-radius:999px; white-space:nowrap; }
-  .chip.high{ background:var(--gold-bg); color:var(--gold); }
-  .chip.medium{ background:var(--teal-bg); color:var(--teal); }
-  .chip.low{ background:var(--surface-2); color:var(--muted); border:1px solid var(--line); }
+  .badge{ font-family:var(--font-mono); font-size:11px; letter-spacing:.02em; padding:3px 9px; border-radius:999px; white-space:nowrap; font-weight:700; }
+  .badge.confirmed{ background:var(--good-bg); color:var(--good); }
+  .badge.candidate{ background:var(--gold-bg); color:var(--gold); }
+  .badge.unknown{ background:var(--surface-2); color:var(--muted); border:1px solid var(--line); }
+  .badge.verdict-buy{ background:var(--good-bg); color:var(--good); }
+  .badge.verdict-check{ background:var(--gold-bg); color:var(--gold); }
+  .badge.verdict-skip{ background:var(--danger-bg); color:var(--danger); }
 
-  .item-name{ font-weight:700; font-size:15.5px; }
-  .item-brand{ font-size:13px; color:var(--muted); margin-top:1px; }
-  .item-brand.unsure{ color:var(--gold); }
-  .category-tag{ display:inline-block; font-size:11.5px; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:1px 7px; margin-top:8px; margin-right:6px; }
-  .discount-tag{ display:inline-block; font-size:11.5px; color:var(--danger); border:1px solid var(--danger); border-radius:6px; padding:1px 7px; margin-top:8px; }
-  .price{ font-family:var(--font-mono); font-size:19px; font-weight:600; color:var(--gold); font-variant-numeric:tabular-nums; margin:10px 0 6px; }
-  .reason{ font-size:13px; opacity:.85; }
-  .evidence{ font-size:12px; color:var(--muted); margin-top:4px; }
-  .card-actions{ margin-top:12px; display:flex; flex-direction:column; gap:4px; }
+  .shelf-wrap{ position:relative; border-radius:var(--radius); overflow:hidden; border:1px solid var(--line); }
+  .shelf-wrap img{ display:block; width:100%; height:auto; }
+  .shelf-wrap svg{ position:absolute; inset:0; width:100%; height:100%; }
+  .box-num{ font-family:var(--font-mono); font-weight:700; font-size:11px; }
+
+  .item-list{ display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+  .item-row{ display:flex; align-items:center; gap:10px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; cursor:pointer; text-align:left; width:100%; font-family:inherit; color:inherit; }
+  .item-row .num{ font-family:var(--font-mono); font-weight:700; color:var(--gold); width:20px; flex-shrink:0; }
+  .item-row .label{ flex:1; }
+  .item-row .cat{ font-weight:600; font-size:13.5px; }
+  .item-row .feat{ font-size:12px; color:var(--muted); }
+
+  .checklist{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .checklist li{ display:flex; align-items:center; gap:8px; font-size:14px; padding:8px 10px; background:var(--surface-2); border-radius:8px; }
+  .checklist li input{ flex-shrink:0; }
+
+  .thumb-row{ display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; }
+  .thumb-row img{ width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line); }
+
+  .evidence-block{ background:var(--surface-2); border-radius:10px; padding:12px; margin-bottom:10px; font-size:13px; }
+  .evidence-block .k{ color:var(--muted); font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; margin-bottom:2px; }
+  .evidence-block ul{ margin:4px 0 0; padding-left:18px; }
+
+  .kv-table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  .kv-table td{ padding:7px 0; border-bottom:1px solid var(--line); }
+  .kv-table td:first-child{ color:var(--muted); }
+  .kv-table td:last-child{ text-align:right; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  .kv-table tr.total td{ font-weight:700; border-bottom:none; padding-top:10px; }
+
+  .price-list{ display:flex; flex-direction:column; gap:6px; margin:10px 0; }
+  .price-list .row{ display:flex; gap:8px; align-items:center; }
+  .price-list input{ flex:1; }
+
+  .verdict-card{ text-align:center; padding:28px 16px; }
+  .verdict-card .big{ font-family:var(--font-display); font-weight:900; font-size:26px; margin:10px 0; }
+  .verdict-card .profit{ font-family:var(--font-mono); font-size:32px; font-weight:700; color:var(--gold); font-variant-numeric:tabular-nums; }
+
+  table.eval-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.eval-table th, table.eval-table td{ border-bottom:1px solid var(--line); padding:6px 4px; text-align:left; }
+  .scroll-x{ overflow-x:auto; }
+
   .mercari-link{ display:inline-flex; align-items:center; gap:4px; font-size:13.5px; font-weight:600; color:var(--teal); text-decoration:none; }
   .mercari-link:hover{ text-decoration:underline; }
-  .link-hint{ font-size:11.5px; color:var(--muted); }
-  .closeup-link{ background:none; border:none; padding:0; margin-top:6px; font-size:13px; font-weight:600; color:var(--gold); text-decoration:none; cursor:pointer; text-align:left; font-family:inherit; }
-  .closeup-link:hover{ text-decoration:underline; }
 
-  footer.foot{ margin-top:28px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); }
+  footer.foot{ margin-top:24px; padding-top:14px; border-top:1px solid var(--line); font-size:11.5px; color:var(--muted); }
   [hidden]{ display:none!important; }
   @media (prefers-reduced-motion: reduce){ *{ transition:none!important; } }
 </style>
 </head>
 <body>
 
+<div id="mockBanner" class="mock-banner" hidden>⚠️ モックモード動作中(実際のAI解析ではありません)</div>
+
 <div class="wrap">
   <header class="top">
     <div class="brand">
       <div class="brand-left">
-        <span class="mark">SCAN</span>
-        <h1>せどりスキャナー</h1>
+        <span class="mark">JUDGE</span>
+        <h1>仕入れスキャナー</h1>
       </div>
-      <button class="gear" id="settingsBtn" aria-label="設定" title="設定">⚙️</button>
+      <div class="icon-row">
+        <button class="icon-btn" id="evalBtn" title="精度テスト">📊</button>
+        <button class="icon-btn" id="settingsBtn" title="設定">⚙️</button>
+      </div>
     </div>
-    <p class="tagline">商品棚を撮るだけで、高く売れそうな「狙い目」をAIが見つけます</p>
+    <div class="steps-nav" id="stepsNav"></div>
   </header>
 
-  <section class="panel" id="setupPanel" hidden>
-    <h2>Gemini APIキーの設定</h2>
-    <p class="desc">写真の解析には Google Gemini API を使います。無料のAPIキーを取得して、下に貼り付けてください。キーはこの端末のブラウザにだけ保存され、Googleへの通信以外には送信されません。</p>
-    <label class="field-label" for="apiKeyInput">APIキー</label>
-    <input type="password" id="apiKeyInput" placeholder="AIza..." autocomplete="off">
-    <p class="field-hint"><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio でキーを発行する →</a></p>
-
-    <label class="field-label" for="modelInput" style="margin-top:14px;">モデル名(通常は変更不要)</label>
-    <input type="text" id="modelInput" placeholder="gemini-3.7-flash" autocomplete="off">
-    <p class="field-hint">「モデルが見つかりません」というエラーが出た場合は、エラー文中に書かれているモデル名にここを書き換えてください。</p>
-
-    <div class="actions">
-      <button class="btn btn-primary" id="saveKeyBtn">保存する</button>
-      <button class="btn" id="cancelKeyBtn" hidden>キャンセル</button>
-    </div>
-    <p class="status-line" id="keyStatus" hidden></p>
-  </section>
-
-  <section class="steps" aria-label="使い方">
-    <div class="step"><span class="n">01</span><p>棚を撮影</p></div>
-    <div class="step"><span class="n">02</span><p>AIが狙い目を判定</p></div>
-    <div class="step"><span class="n">03</span><p>気になる商品は近づいて再確認</p></div>
-  </section>
-
-  <section class="panel" id="scanPanel">
-    <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="写真を撮る、または選ぶ">
-      <span class="icon">📷</span>
-      <span class="cta" id="dropzoneCta">写真を撮る / 画像を選ぶ</span>
-      <div class="hint" id="dropzoneHint">棚全体が写っていればOK。値札やロゴが読めるとより正確です</div>
-    </div>
-    <input type="file" id="fileInput" accept="image/*" capture="environment" hidden>
-
-    <div id="previewBlock" hidden>
-      <div class="preview-row" style="margin-top:14px;">
-        <img id="previewImg" alt="選択した写真のプレビュー">
-        <div class="preview-meta"><div class="name" id="fileName"></div></div>
-      </div>
-      <div class="actions">
-        <button class="btn btn-primary" id="analyzeBtn">この写真を解析する</button>
-        <button class="btn" id="retakeBtn">撮り直す</button>
-      </div>
-    </div>
-
-    <p class="status-line" id="statusLine" hidden></p>
-  </section>
-
-  <section class="results" id="detailSection" hidden>
-    <h2>🔍 拡大確認の結果</h2>
-    <div class="cards" id="detailList"></div>
-  </section>
-
-  <section class="results">
-    <h2>注目商品</h2>
-    <div class="banner" id="demoBanner">
-      <span>💡</span>
-      <span>これはサンプル表示です。写真を解析すると、あなたの棚の結果に置き換わります。</span>
-    </div>
-    <p class="field-hint" style="margin:-6px 0 14px;">ブランド名は目安です。「確定」以外の商品は、カード内の🔍リンクからその商品だけをアップで撮り直すと精度が上がります。</p>
-    <div class="cards" id="cardList"></div>
-  </section>
+  <main id="screen"></main>
 
   <footer class="foot">
-    価格帯はAIによる一般知識からのおおまかな目安で、実売相場ではありません。購入前に必ずメルカリのリンクから「売り切れ」の実売履歴を確認してください。ブランドの真贋判定はできないため、最終判断はご自身で行ってください。APIキーはお使いの端末にのみ保存され、Google以外には送信されません。
+    このアプリの判定はAIによる画像解析の目安であり、正規品や実売価格を保証するものではありません。最終判断は現物確認の上、ご自身の責任で行ってください。APIキーはお使いの端末にのみ保存され、Google以外には送信されません。
   </footer>
 </div>
 
-<script>
-(function(){
-  const DEFAULT_MODEL = 'gemini-3.7-flash';
-  const STORAGE_KEY = 'sedori-scanner-gemini-key';
-  const STORAGE_KEY_MODEL = 'sedori-scanner-gemini-model';
-
-  const DEMO_ITEMS = [
-    {item:"マウンテンパーカー", brand:"THE NORTH FACE", brand_certain:true, discount_signal:"", category:"アウター", confidence:"high", est_low:8000, est_high:15000, reason:"定番人気モデルで通年需要が高い", evidence:"胸元にノースフェイスのロゴマークがはっきり見える", keyword:"ノースフェイス マウンテンパーカー"},
-    {item:"トートバッグ", brand:"", brand_certain:false, discount_signal:"半額シール", material_signal:"本革特有の自然なシボと厚みがあり、ステッチも均一で密。金具はずっしりして鏡面仕上げ", category:"バッグ", confidence:"medium", est_low:0, est_high:0, reason:"半額シール付きで仕入れ値が低く狙い目", evidence:"ロゴは不明瞭だが値引きシールあり", keyword:"レザー トートバッグ ブランド不明"},
-    {item:"スニーカー 574", brand:"New Balance", brand_certain:true, discount_signal:"", category:"シューズ", confidence:"high", est_low:3000, est_high:6000, reason:"未使用品は定価超えで取引されることも", evidence:"側面のNロゴがはっきり見える", keyword:"ニューバランス 574"}
-  ];
-
-  const ITEM_SCHEMA = {
-    type: "object",
-    properties: {
-      item: { type: "string" },
-      brand: { type: "string" },
-      brand_certain: { type: "boolean" },
-      evidence: { type: "string" },
-      discount_signal: { type: "string" },
-      material_signal: { type: "string" },
-      category: { type: "string" },
-      confidence: { type: "string", enum: ["high","medium","low"] },
-      est_low: { type: "number" },
-      est_high: { type: "number" },
-      reason: { type: "string" },
-      keyword: { type: "string" }
-    },
-    required: ["item","evidence","material_signal","brand_certain","confidence","est_low","est_high","keyword"]
-  };
-
-  const RESPONSE_SCHEMA = {
-    type: "object",
-    properties: { items: { type: "array", items: ITEM_SCHEMA } },
-    required: ["items"]
-  };
-
-  const MATERIAL_CHECKLIST = [
-    '【素材・製法から品質を見極めるポイント】ロゴが読めなくても、以下のような目利きの視点で観察し、気づいたことを material_signal に具体的に書いてください(良い兆候・悪い兆候どちらも正直に)。',
-    '- 革製品: シボ(表面の凹凸)が不均一で自然かどうか(本革の特徴)/型押しで均一すぎないか(合皮の特徴)。切り口(コバ)の処理が丁寧に磨き上げられているか、樹脂で塗っただけで粗いか。',
-    '- 縫製: ステッチの間隔が均一で直線が綺麗か、糸のほつれ・浮きがないか。裏地の生地や仕立てが本体に見合っているか。',
-    '- 金具・ファスナー: 重量感やメッキの質感、留め具に刻印があるか。ファスナーのスライダーに「YKK」「riri」「LAMPO」等の刻印が読めるか(高品質パーツの目印)。',
-    '- 生地: 織り目が細かく密か、毛羽立ちや安っぽい光沢がないか。厚みや張りが価格相応か。',
-    '- 木製・金属製品: 無垢材の木目か、プリント合板か。金属パーツが削り出し・鋳造のような重量感か、薄いプレス加工か。',
-    '- 家電・ガジェット: 筐体の質感(アルミ・ガラス vs 安価なプラスチック)、パッケージや同梱物の作り込み。',
-    '- 全体的な仕上げ: パッケージ・箱・タグ・保存袋(布袋)の有無や質、未使用/美品らしさ。',
-    'こうした観察は、ブランドが不明な商品(discount_signal や material_signal だけで良さそうな商品)の confidence を判断する材料としても積極的に使ってください。判断材料が乏しい商品(密封パッケージ品など)は material_signal に「外装のみで判断材料なし」のように書いてください。'
-  ].join('\n');
-
-  const PROMPT_MAIN = [
-    'あなたは日本の中古品転売(せどり)に詳しい目利きです。添付の写真は小売店の商品棚です。',
-    '写っている商品の中から、メルカリ等のフリマアプリで転売した際に利益が出やすいと考えられる「注目商品」を最大8件ピックアップしてください。写真に実際に写っているものだけを対象にし、写っていない商品を創作しないでください。',
-    '',
-    '注目商品は、次の3種類のどれでも構いません。あらゆる視点で探してください。',
-    'A) ブランドがかなり高い確度で特定できるもの',
-    'B) ブランドは不明でも、値引き・クリアランスの表示があるもの',
-    'C) ブランドは不明でも、素材・作りの良さから価値が見込めそうなもの',
-    '',
-    '【ブランド判定のルール(最重要)】',
-    '- ブランド名を書いてよいのは、次のどちらかを実際に写真の中で確認できた場合だけです: (1) ロゴ・ブランド名の文字・タグ・パッケージ表記が読み取れる (2) モノグラム柄、総柄パターン、スウォッシュや三本線のような、そのブランド固有と分かるアイコニックな意匠が見える。',
-    '- バッグや靴の一般的な形・シルエットだけから「たぶん〇〇ブランドだろう」と推測してブランド名を書くのは禁止です。誤認の最大の原因です。',
-    '- 確信が持てる場合は brand_certain を true に、少しでも自信がない場合は false にしてください。false のときは brand は空文字にするか、根拠が弱いことが分かるようにしてください。',
-    '- evidence には、判断に使った具体的な文字・ロゴ・柄・値引き表示の内容を書いてください(例:「胸ポケットに刺繍ロゴ」「モノグラム柄の生地」「黄色の半額シールが貼付」)。何も確証がない場合は「ロゴ等は確認できず」と正直に書いてください。',
-    '- discount_signal には、値引きシール・クリアランス表示・「アウトレット」「在庫限り」等の掲示が見えた場合にその内容を書いてください。無ければ空文字にしてください。',
-    '',
-    MATERIAL_CHECKLIST,
-    '',
-    '各商品について item, brand(不明可), brand_certain, evidence, discount_signal, material_signal, category, confidence(high/medium/low、総合的な「狙い目度」。ブランド確度・値引き・素材の良さを総合して判断), est_low(円), est_high(円), reason(30字以内), keyword(メルカリ検索用) を出力してください。価格は一般知識に基づくおおまかな目安で構いません。ブランド不明の場合は est_low/est_high を 0 にして構いません。'
-  ].join('\n');
-
-  const PROMPT_DETAIL = [
-    'あなたは日本の中古品転売(せどり)に詳しい目利きです。添付の写真は、ユーザーが1つの商品だけをできるだけ大きく撮影したクローズアップ写真です。',
-    'この商品のブランド・型番・特徴、そして素材や作りの良し悪しを、写真から読み取れる範囲でできるだけ詳しく判定してください。',
-    '【ブランド判定のルール】ロゴ・タグ・刻印の文字、またはモノグラム柄などアイコニックな意匠が実際に見える場合のみブランド名と brand_certain: true を出力してください。形状だけからの推測は禁止です。確証がなければ brand は空文字、brand_certain は false にし、evidence に見えている具体的な手がかり(または「確認できず」)を書いてください。',
-    '',
-    MATERIAL_CHECKLIST,
-    '',
-    '出力は1件のみで構いません(items配列に1要素)。discount_signal は見えた値引き表示があれば書き、無ければ空文字にしてください。est_low/est_high は円単位のおおまかな中古参考価格(不明なら0)、keyword はメルカリ検索用の短い語句にしてください。'
-  ].join('\n');
-
-  const els = {};
-  let currentFile = null;
-  let apiKey = null;
-  let model = null;
-  let closeupMode = false;
-
-  document.addEventListener('DOMContentLoaded', init);
-
-  function init(){
-    els.settingsBtn = document.getElementById('settingsBtn');
-    els.setupPanel = document.getElementById('setupPanel');
-    els.apiKeyInput = document.getElementById('apiKeyInput');
-    els.modelInput = document.getElementById('modelInput');
-    els.saveKeyBtn = document.getElementById('saveKeyBtn');
-    els.cancelKeyBtn = document.getElementById('cancelKeyBtn');
-    els.keyStatus = document.getElementById('keyStatus');
-    els.scanPanel = document.getElementById('scanPanel');
-    els.dropzone = document.getElementById('dropzone');
-    els.dropzoneCta = document.getElementById('dropzoneCta');
-    els.dropzoneHint = document.getElementById('dropzoneHint');
-    els.fileInput = document.getElementById('fileInput');
-    els.previewBlock = document.getElementById('previewBlock');
-    els.previewImg = document.getElementById('previewImg');
-    els.fileName = document.getElementById('fileName');
-    els.analyzeBtn = document.getElementById('analyzeBtn');
-    els.retakeBtn = document.getElementById('retakeBtn');
-    els.statusLine = document.getElementById('statusLine');
-    els.demoBanner = document.getElementById('demoBanner');
-    els.cardList = document.getElementById('cardList');
-    els.detailSection = document.getElementById('detailSection');
-    els.detailList = document.getElementById('detailList');
-
-    renderItems(DEMO_ITEMS, true);
-
-    els.dropzone.addEventListener('click', () => els.fileInput.click());
-    els.dropzone.addEventListener('keydown', (e) => {
-      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); els.fileInput.click(); }
-    });
-    els.fileInput.addEventListener('change', onFileChosen);
-    els.retakeBtn.addEventListener('click', resetToPicker);
-    els.analyzeBtn.addEventListener('click', runAnalysis);
-    els.settingsBtn.addEventListener('click', () => openSetup(true));
-    els.saveKeyBtn.addEventListener('click', saveKey);
-    els.cancelKeyBtn.addEventListener('click', () => openSetup(false));
-    els.cardList.addEventListener('click', onCloseupLinkClick);
-    els.detailList.addEventListener('click', onCloseupLinkClick);
-
-    apiKey = localStorage.getItem(STORAGE_KEY);
-    model = localStorage.getItem(STORAGE_KEY_MODEL) || DEFAULT_MODEL;
-    if(!apiKey){ openSetup(true, false); }
-  }
-
-  function openSetup(show, cancellable){
-    els.setupPanel.hidden = !show;
-    els.scanPanel.hidden = show && !apiKey;
-    els.cancelKeyBtn.hidden = !(cancellable !== false && apiKey);
-    if(show){
-      els.apiKeyInput.value = apiKey || '';
-      els.modelInput.value = model || DEFAULT_MODEL;
-    }
-    hideKeyStatus();
-  }
-
-  function saveKey(){
-    const v = els.apiKeyInput.value.trim();
-    if(!v){ showKeyStatus('APIキーを入力してください。', true); return; }
-    const m = els.modelInput.value.trim() || DEFAULT_MODEL;
-    localStorage.setItem(STORAGE_KEY, v);
-    localStorage.setItem(STORAGE_KEY_MODEL, m);
-    apiKey = v;
-    model = m;
-    showKeyStatus('保存しました。', false);
-    setTimeout(() => openSetup(false), 500);
-  }
-
-  function showKeyStatus(msg, isErr){
-    els.keyStatus.textContent = msg;
-    els.keyStatus.hidden = false;
-    els.keyStatus.classList.toggle('err', !!isErr);
-  }
-  function hideKeyStatus(){ els.keyStatus.hidden = true; }
-
-  function onFileChosen(e){
-    const file = e.target.files && e.target.files[0];
-    if(!file) return;
-    currentFile = file;
-    els.previewImg.src = URL.createObjectURL(file);
-    els.fileName.textContent = file.name;
-    els.previewBlock.hidden = false;
-    els.dropzone.hidden = true;
-    hideStatus();
-  }
-
-  function resetToPicker(){
-    currentFile = null;
-    els.fileInput.value = '';
-    els.previewBlock.hidden = true;
-    els.dropzone.hidden = false;
-    hideStatus();
-  }
-
-  function onCloseupLinkClick(e){
-    const link = e.target.closest('.closeup-link');
-    if(!link) return;
-    closeupMode = true;
-    resetToPicker();
-    els.dropzoneCta.textContent = '🔍 その商品をアップで撮る';
-    els.dropzoneHint.textContent = '1点だけを画面いっぱいに、ロゴやタグが読める距離で撮影してください';
-    els.scanPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  function showStatus(msg, isErr){
-    els.statusLine.textContent = msg;
-    els.statusLine.hidden = false;
-    els.statusLine.classList.toggle('err', !!isErr);
-  }
-  function hideStatus(){ els.statusLine.hidden = true; }
-
-  function resizeToBase64(file, maxSide){
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        let { width, height } = img;
-        if(width > height && width > maxSide){ height = Math.round(height * maxSide / width); width = maxSide; }
-        else if(height > maxSide){ width = Math.round(width * maxSide / height); height = maxSide; }
-        const canvas = document.createElement('canvas');
-        canvas.width = width; canvas.height = height;
-        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-        URL.revokeObjectURL(img.src);
-        resolve(dataUrl.split(',')[1]);
-      };
-      img.onerror = reject;
-      img.src = URL.createObjectURL(file);
-    });
-  }
-
-  async function runAnalysis(){
-    if(!currentFile) return;
-    if(!apiKey){ openSetup(true, false); return; }
-
-    const mode = closeupMode ? 'detail' : 'main';
-    const prompt = mode === 'detail' ? PROMPT_DETAIL : PROMPT_MAIN;
-
-    els.analyzeBtn.disabled = true;
-    els.retakeBtn.disabled = true;
-    showStatus('解析中…(数十秒かかることがあります)', false);
-
-    try{
-      const base64 = await resizeToBase64(currentFile, 2048);
-      const body = {
-        model: model || DEFAULT_MODEL,
-        store: false,
-        input: [
-          { type: 'text', text: prompt },
-          { type: 'image', data: base64, mime_type: 'image/jpeg' }
-        ],
-        response_format: {
-          type: 'text',
-          mime_type: 'application/json',
-          schema: RESPONSE_SCHEMA
-        }
-      };
-      const url = 'https://generativelanguage.googleapis.com/v1beta/interactions';
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey
-        },
-        body: JSON.stringify(body)
-      });
-      const json = await res.json().catch(() => null);
-      if(!res.ok){
-        const msg = (json && json.error && json.error.message) ? json.error.message : ('HTTPエラー ' + res.status);
-        throw new Error(msg);
-      }
-      const text = extractOutputText(json);
-      if(!text) throw new Error('AIから結果が返りませんでした。');
-      const parsed = JSON.parse(text);
-      const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed && parsed.items) ? parsed.items : []);
-      const cleaned = list
-        .filter(x => x && typeof x === 'object' && x.item)
-        .map(x => ({
-          item: String(x.item),
-          brand: x.brand ? String(x.brand) : '',
-          brand_certain: !!x.brand_certain,
-          evidence: x.evidence ? String(x.evidence) : '',
-          discount_signal: x.discount_signal ? String(x.discount_signal) : '',
-          material_signal: x.material_signal ? String(x.material_signal) : '',
-          category: x.category ? String(x.category) : '',
-          confidence: ['high','medium','low'].includes(x.confidence) ? x.confidence : 'medium',
-          est_low: Number(x.est_low) || 0,
-          est_high: Number(x.est_high) || Number(x.est_low) || 0,
-          reason: x.reason ? String(x.reason) : '',
-          keyword: x.keyword ? String(x.keyword) : (x.brand ? String(x.brand) + ' ' + String(x.item) : String(x.item))
-        }));
-
-      if(mode === 'detail'){
-        if(cleaned.length === 0){
-          showStatus('この商品は判定できませんでした。もっと近づいて、ロゴやタグにピントを合わせて撮り直してみてください。', false);
-        } else {
-          hideStatus();
-        }
-        els.detailSection.hidden = cleaned.length === 0;
-        els.detailList.innerHTML = cleaned.map(cardHtml).join('');
-        if(cleaned.length) els.detailSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else {
-        if(cleaned.length === 0){
-          showStatus('狙い目の商品が見つかりませんでした。別の角度や、値札が見える距離で撮り直してみてください。', false);
-        } else {
-          hideStatus();
-        }
-        renderItems(cleaned, false);
-      }
-    } catch(err){
-      console.error(err);
-      showStatus(friendlyError(err), true);
-    } finally {
-      els.analyzeBtn.disabled = false;
-      els.retakeBtn.disabled = false;
-      closeupMode = false;
-      els.dropzoneCta.textContent = '写真を撮る / 画像を選ぶ';
-      els.dropzoneHint.textContent = '棚全体が写っていればOK。値札やロゴが読めるとより正確です';
-    }
-  }
-
-  function extractOutputText(json){
-    if(!json) return null;
-    const steps = Array.isArray(json.steps) ? json.steps : (Array.isArray(json.output) ? json.output : []);
-    for(const step of steps){
-      const parts = Array.isArray(step && step.content) ? step.content : [];
-      for(const part of parts){
-        if(part && part.type === 'text' && part.text) return part.text;
-      }
-    }
-    return json.output_text || null;
-  }
-
-  function friendlyError(err){
-    const m = String(err && err.message || err);
-    if(/API key not valid|API_KEY_INVALID/i.test(m)) return 'APIキーが正しくありません。⚙️から設定し直してください。';
-    if(/no longer available|not found|not supported/i.test(m)) return 'モデル名が古い可能性があります。⚙️の「モデル名」欄を、下のエラー詳細に出ているモデル名に書き換えて保存してください。詳細: ' + m;
-    if(/RESOURCE_EXHAUSTED|quota|429/i.test(m)) return '利用上限に達しました。しばらく待ってから再試行してください。';
-    if(/PERMISSION_DENIED|403/i.test(m)) return 'このAPIキーでは利用できませんでした。Google AI Studioでキーの状態を確認してください。';
-    if(/Failed to fetch|NetworkError/i.test(m)) return '通信に失敗しました。電波状況を確認してもう一度お試しください。';
-    return 'うまく解析できませんでした。もう一度お試しください。(' + m + ')';
-  }
-
-  function yen(n){ return '¥' + Math.round(n).toLocaleString('ja-JP'); }
-
-  const CONF_RANK = { high: 2, medium: 1, low: 0 };
-  function renderItems(items, demo){
-    els.demoBanner.hidden = !demo;
-    const sorted = items.slice().sort((a,b) => {
-      const c = (CONF_RANK[b.confidence] || 0) - (CONF_RANK[a.confidence] || 0);
-      return c !== 0 ? c : (b.est_high||0) - (a.est_high||0);
-    });
-    els.cardList.innerHTML = sorted.map(cardHtml).join('');
-  }
-
-  function cardHtml(x){
-    const confLabel = x.confidence === 'high' ? '狙い目度: 高' : x.confidence === 'low' ? '狙い目度: 低' : '狙い目度: 中';
-    const hasPrice = x.est_low > 0 || x.est_high > 0;
-    const priceText = !hasPrice
-      ? 'ブランド未確定のため目安なし'
-      : (x.est_low && x.est_high && x.est_low !== x.est_high
-        ? yen(x.est_low) + '〜' + yen(x.est_high)
-        : yen(x.est_high || x.est_low) + '前後');
-    const url = 'https://jp.mercari.com/search?keyword=' + encodeURIComponent(x.keyword || x.item);
-    const brandLine = x.brand
-      ? '<div class="item-brand' + (x.brand_certain ? '' : ' unsure') + '">' + escapeHtml(x.brand) + (x.brand_certain ? '' : '(未確定)') + '</div>'
-      : (x.brand_certain === false ? '<div class="item-brand unsure">ブランド不明</div>' : '');
-    return (
-      '<div class="card">' +
-        '<div class="card-top">' +
-          '<div>' +
-            '<div class="item-name">' + escapeHtml(x.item) + '</div>' +
-            brandLine +
-          '</div>' +
-          '<span class="chip ' + x.confidence + '">' + confLabel + '</span>' +
-        '</div>' +
-        (x.category ? '<span class="category-tag">' + escapeHtml(x.category) + '</span>' : '') +
-        (x.discount_signal ? '<span class="discount-tag">🏷️ ' + escapeHtml(x.discount_signal) + '</span>' : '') +
-        '<div class="price">' + priceText + '</div>' +
-        (x.reason ? '<div class="reason">' + escapeHtml(x.reason) + '</div>' : '') +
-        (x.evidence ? '<div class="evidence">根拠: ' + escapeHtml(x.evidence) + '</div>' : '') +
-        (x.material_signal ? '<div class="evidence">素材・作り: ' + escapeHtml(x.material_signal) + '</div>' : '') +
-        '<div class="card-actions">' +
-          '<a class="mercari-link" href="' + url + '" target="_blank" rel="noopener">メルカリで相場を確認 →</a>' +
-          '<span class="link-hint">「販売状況」を「売り切れ」に絞ると実際の落札額が見られます</span>' +
-          (x.brand_certain ? '' : '<button type="button" class="closeup-link">🔍 この商品だけアップで撮り直して確認する</button>') +
-        '</div>' +
-      '</div>'
-    );
-  }
-
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-})();
-</script>
+<script src="checklists.js"></script>
+<script src="scoring.js"></script>
+<script src="schemas.js"></script>
+<script src="gemini.js"></script>
+<script src="prompts.js"></script>
+<script src="mock.js"></script>
+<script src="storage.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
